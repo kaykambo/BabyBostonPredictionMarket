@@ -272,6 +272,40 @@ h1.title em { color: var(--pond); font-style: italic; }
 .confetti-piece { position: fixed; width: 10px; height: 10px; top: -20px; border-radius: 2px; animation: confettiFall linear forwards; z-index: 900; pointer-events: none; }
 @keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 
+/* ====== CRAWLING BABY ====== */
+.crawling-baby {
+  position: fixed;
+  font-size: 2.6rem;
+  z-index: 950;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  animation: babyWobble 0.35s ease-in-out infinite alternate;
+}
+@keyframes babyWobble {
+  from { transform: rotate(-8deg) scaleY(1); }
+  to   { transform: rotate(8deg) scaleY(0.92); }
+}
+@keyframes babyHeadBob {
+  from { transform: translateY(0px) rotate(-5deg); }
+  to   { transform: translateY(-3px) rotate(5deg); }
+}
+.baby-name-tag {
+  position: fixed;
+  z-index: 951;
+  pointer-events: none;
+  background: white;
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--dark);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  white-space: nowrap;
+  font-family: 'Nunito', sans-serif;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
 /* ====== TOAST ====== */
 .toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
 .toast { background: var(--dark); color: #fff; padding: 11px 24px; border-radius: 100px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 8px 24px rgba(44,62,45,0.3); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; }
@@ -582,13 +616,104 @@ let state = { players:{}, resolved:{}, wishes:[], nameGuessAnswer:null, nameGues
 let currentPlayer = null;
 let photoData = null; // local only — photos stored as base64 in Firebase player record
 
+// ===================== CRAWLING BABY =====================
+const BABY_EMOJIS = ['👶','👶🏻','👶🏼','👶🏽','👶🏾','👶🏿'];
+
+function spawnCrawlingBaby(playerName) {
+  const directions = ['left-to-right','right-to-left','top-to-bottom','bottom-to-top'];
+  const dir = directions[Math.floor(Math.random() * directions.length)];
+  const duration = 2800 + Math.random() * 2200;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const photo = state.players[playerName]?.photo || null;
+
+  let startX, startY, endX, endY, flipX=1, flipY=1;
+  const rand = () => Math.random();
+  if (dir==='left-to-right') {
+    startX=-100; endX=vw+100; startY=rand()*(vh-120)+40; endY=rand()*(vh-120)+40;
+  } else if (dir==='right-to-left') {
+    startX=vw+100; endX=-100; flipX=-1; startY=rand()*(vh-120)+40; endY=rand()*(vh-120)+40;
+  } else if (dir==='top-to-bottom') {
+    startY=-100; endY=vh+100; startX=rand()*(vw-120)+40; endX=rand()*(vw-120)+40;
+  } else {
+    startY=vh+100; endY=-100; flipY=-1; startX=rand()*(vw-120)+40; endX=rand()*(vw-120)+40;
+  }
+
+  // Wrapper holds both head and body so they move together
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `position:fixed;z-index:950;pointer-events:none;left:${startX}px;top:${startY}px;display:flex;flex-direction:column;align-items:center;gap:0px;transform:scaleX(${flipX}) scaleY(${flipY});`;
+
+  if (photo) {
+    // Photo head floating above the baby body
+    const head = document.createElement('img');
+    head.src = photo;
+    head.style.cssText = `
+      width: 38px; height: 38px; border-radius: 50%;
+      object-fit: cover;
+      border: 2.5px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      display: block;
+      margin-bottom: -6px;
+      animation: babyHeadBob 0.35s ease-in-out infinite alternate;
+      flex-shrink: 0;
+    `;
+    wrapper.appendChild(head);
+  }
+
+  // Baby body emoji
+  const body = document.createElement('div');
+  body.style.cssText = `font-size:${photo ? '2rem' : '2.6rem'};line-height:1;animation:babyWobble 0.35s ease-in-out infinite alternate;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.15));`;
+  body.textContent = photo ? '🍼' : BABY_EMOJIS[Math.floor(Math.random()*BABY_EMOJIS.length)];
+  wrapper.appendChild(body);
+
+  document.body.appendChild(wrapper);
+
+  // Name tag
+  const tag = document.createElement('div');
+  tag.className = 'baby-name-tag';
+  tag.textContent = `${playerName} joined!`;
+  document.body.appendChild(tag);
+
+  const startTime = performance.now();
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const ease = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+    const x = startX + (endX-startX)*ease;
+    const y = startY + (endY-startY)*ease + Math.sin(t*Math.PI*6)*18;
+    wrapper.style.left = x+'px';
+    wrapper.style.top  = y+'px';
+    // Name tag trails just above
+    tag.style.left = (x - 10)+'px';
+    tag.style.top  = (y - 36)+'px';
+    tag.style.opacity = t < 0.1 ? t*10 : t > 0.8 ? (1-t)*5 : 1;
+    if (t < 1) requestAnimationFrame(animate);
+    else { wrapper.remove(); tag.remove(); }
+  }
+  requestAnimationFrame(animate);
+}
+
 // ===================== FIREBASE REAL-TIME LISTENER =====================
 // This is the magic: onValue fires every time ANY data changes in Firebase.
 // Everyone's UI updates automatically when anyone places a bet.
 function startListening() {
+  let knownPlayers = null; // track who we've seen to detect NEW joins
+
   onValue(ref(db, '/'), (snapshot) => {
     const data = snapshot.val() || {};
-    state.players  = data.players  || {};
+    const newPlayers = data.players || {};
+
+    // Detect newly joined players and spawn a baby for each
+    if (knownPlayers !== null) {
+      Object.keys(newPlayers).forEach(name => {
+        if (!knownPlayers[name]) {
+          // Small delay so it doesn't fire during initial load
+          setTimeout(() => spawnCrawlingBaby(name), 300);
+        }
+      });
+    }
+    knownPlayers = {...newPlayers};
+
+    state.players  = newPlayers;
     state.resolved = data.resolved || {};
     state.wishes   = data.wishes   ? Object.values(data.wishes).sort((a,b)=>b.ts-a.ts) : [];
     state.nameGuessAnswer = data.nameGuessAnswer || null;
