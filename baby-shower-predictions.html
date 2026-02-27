@@ -538,7 +538,27 @@ h1.title em { color: var(--pond); font-style: italic; }
 </div><!-- /page -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script>
+<script type="module">
+// ===================== FIREBASE CONFIG =====================
+// PASTE YOUR FIREBASE CONFIG HERE 👇
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue, push, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCoPE2Q-aJT02J7h8IPFKEdgJLRWE8GFx8",
+  authDomain: "babybostonmarket.firebaseapp.com",
+  databaseURL: "https://babybostonmarket-default-rtdb.firebaseio.com",
+  projectId: "babybostonmarket",
+  storageBucket: "babybostonmarket.firebasestorage.app",
+  messagingSenderId: "711281898599",
+  appId: "1:711281898599:web:ed70d9d6594116e51ed0c2",
+  measurementId: "G-RPSM1VBPTM"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
 // ===================== MARKETS =====================
 const MARKETS = [
   { id:'gender', question:'Boy or girl?', tag:'🍼 Gender', options:['Boy 💙','Girl 💗'] },
@@ -557,187 +577,216 @@ const COIN = '🍞';
 const DUE_DATE = new Date('2026-05-16T00:00:00');
 
 // ===================== STATE =====================
-let state = { players:{}, resolved:{}, wishes:[], currentPlayer:null };
-function loadState() { try { const s=localStorage.getItem('babyShowerp2'); if(s) state=JSON.parse(s); } catch(e){} }
-function saveState() { localStorage.setItem('babyShowerp2', JSON.stringify(state)); }
+// All shared state lives in Firebase. Local state only tracks current player session.
+let state = { players:{}, resolved:{}, wishes:[], nameGuessAnswer:null, nameGuessWinner:null };
+let currentPlayer = null;
+let photoData = null; // local only — photos stored as base64 in Firebase player record
+
+// ===================== FIREBASE REAL-TIME LISTENER =====================
+// This is the magic: onValue fires every time ANY data changes in Firebase.
+// Everyone's UI updates automatically when anyone places a bet.
+function startListening() {
+  onValue(ref(db, '/'), (snapshot) => {
+    const data = snapshot.val() || {};
+    state.players  = data.players  || {};
+    state.resolved = data.resolved || {};
+    state.wishes   = data.wishes   ? Object.values(data.wishes).sort((a,b)=>b.ts-a.ts) : [];
+    state.nameGuessAnswer = data.nameGuessAnswer || null;
+    state.nameGuessWinner = data.nameGuessWinner || null;
+
+    // Re-render whatever is currently visible
+    if (document.getElementById('app').classList.contains('active')) {
+      updateWallet();
+      const activeTab = document.querySelector('.nav-tab.active')?.id?.replace('tab-btn-','')
+        || (document.getElementById('tab-markets').style.display!=='none' ? 'markets'
+          : document.getElementById('tab-leaderboard').style.display!=='none' ? 'leaderboard' : 'wishes');
+      if (activeTab==='markets' || document.getElementById('tab-markets').style.display!=='none') renderMarkets();
+      if (document.getElementById('tab-leaderboard').style.display!=='none') renderLeaderboard();
+      if (document.getElementById('tab-wishes').style.display!=='none') renderWishes();
+    }
+    if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
+  });
+}
 
 // ===================== AUDIO =====================
 function playQuack() {
   try {
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.12);
-    osc.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.22);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-  } catch(e) {}
+    osc.type='sine';
+    osc.frequency.setValueAtTime(600,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300,ctx.currentTime+0.12);
+    osc.frequency.exponentialRampToValueAtTime(450,ctx.currentTime+0.22);
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.28);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.3);
+  } catch(e){}
 }
 
 // ===================== COUNTDOWN =====================
 function updateCountdown() {
-  const now = new Date();
-  const diff = DUE_DATE - now;
-  if (diff <= 0) {
-    ['cdDays','cdHours','cdMins','cdSecs'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='0'; });
-    return;
-  }
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=String(v).padStart(2,'0'); };
-  set('cdDays',days); set('cdHours',hours); set('cdMins',mins); set('cdSecs',secs);
-  // TV mode countdown
-  const tvEl = document.getElementById('tvCountdown');
-  if (tvEl && document.getElementById('tvScreen').classList.contains('active')) {
-    tvEl.innerHTML = [['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([lbl,val])=>
-      `<div class="tv-count-unit"><div class="tv-count-num">${String(val).padStart(2,'0')}</div><div class="tv-count-lbl">${lbl}</div></div>`
-    ).join('');
+  const now=new Date(), diff=DUE_DATE-now;
+  if(diff<=0){['cdDays','cdHours','cdMins','cdSecs'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0'});return;}
+  const days=Math.floor(diff/86400000),hours=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
+  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v).padStart(2,'0')};
+  s('cdDays',days);s('cdHours',hours);s('cdMins',mins);s('cdSecs',secs);
+  const tvEl=document.getElementById('tvCountdown');
+  if(tvEl&&document.getElementById('tvScreen').classList.contains('active')){
+    tvEl.innerHTML=[['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([l,v])=>
+      `<div class="tv-count-unit"><div class="tv-count-num">${String(v).padStart(2,'0')}</div><div class="tv-count-lbl">${l}</div></div>`).join('');
   }
 }
-setInterval(updateCountdown, 1000);
-updateCountdown();
+setInterval(updateCountdown,1000); updateCountdown();
 
 // ===================== PHOTO =====================
-let currentPhotoData = null;
 function handlePhotoUpload(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    currentPhotoData = ev.target.result;
-    const prev = document.getElementById('photoPreview');
-    prev.src = currentPhotoData; prev.style.display = 'block';
-    document.getElementById('photoUploadText').textContent = 'Photo added ✓';
+  const file=e.target.files[0]; if(!file) return;
+  // Compress photo before storing to keep Firebase usage low
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      const MAX=200; let w=img.width,h=img.height;
+      if(w>h){if(w>MAX){h=h*(MAX/w);w=MAX;}}else{if(h>MAX){w=w*(MAX/h);h=MAX;}}
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      photoData=canvas.toDataURL('image/jpeg',0.7);
+      const prev=document.getElementById('photoPreview');
+      prev.src=photoData; prev.style.display='block';
+      document.getElementById('photoUploadText').textContent='Photo added ✓';
+    };
+    img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 }
 
 // ===================== AUTH =====================
-function joinGame() {
-  const name = document.getElementById('nameInput').value.trim();
-  if (!name) { toast('Enter your name to join the pond!'); return; }
-  if (!state.players[name]) state.players[name] = { coins: STARTING_COINS, bets: {}, photo: null, nameGuess: '' };
-  if (currentPhotoData) state.players[name].photo = currentPhotoData;
-  state.currentPlayer = name;
-  saveState();
-  showApp();
+async function joinGame() {
+  const name=document.getElementById('nameInput').value.trim();
+  if(!name){toast('Enter your name to join the pond!');return;}
+  showLoading(true);
+  try {
+    // Check if player already exists
+    const snap=await get(ref(db,`players/${name}`));
+    if(!snap.exists()){
+      // New player — create record
+      await set(ref(db,`players/${name}`),{
+        coins:STARTING_COINS, bets:{}, nameGuess:'',
+        photo: photoData||null, joinedAt: Date.now()
+      });
+    } else if(photoData) {
+      // Returning player — update photo if they uploaded one
+      await update(ref(db,`players/${name}`),{photo:photoData});
+    }
+    currentPlayer=name;
+    localStorage.setItem('bbpm_player',name); // remember name across page reloads
+    showApp();
+  } catch(err) {
+    toast('Connection error — check your Firebase config!');
+    console.error(err);
+  }
+  showLoading(false);
+}
+
+function showLoading(on) {
+  const btn=document.querySelector('#welcome .btn-primary');
+  if(btn) btn.textContent = on ? 'Joining...' : 'Join the pond →';
 }
 
 function showAdminLogin() {
-  const pass = prompt('Admin password:');
-  if (pass === ADMIN_PASS) { showScreen('adminScreen'); renderAdmin(); }
-  else if (pass !== null) toast('Wrong password!');
+  const pass=prompt('Admin password:');
+  if(pass===ADMIN_PASS){showScreen('adminScreen');renderAdmin();}
+  else if(pass!==null) toast('Wrong password!');
 }
-function goBack() { showScreen('welcome'); }
-function enterTVMode() { showScreen('tvScreen'); renderTV(); }
-function exitTVMode() { showScreen('welcome'); }
+function goBack(){showScreen('welcome');}
+function enterTVMode(){showScreen('tvScreen');renderTV();}
+function exitTVMode(){showScreen('welcome');}
 
 // ===================== NAV =====================
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const mNav = document.getElementById('mobileNav');
-  if (mNav) mNav.style.display = (id === 'app') ? 'block' : 'none';
+  const mNav=document.getElementById('mobileNav');
+  if(mNav) mNav.style.display=(id==='app')?'block':'none';
 }
 function showApp() {
   showScreen('app');
-  document.getElementById('greetingTitle').textContent = `Welcome, ${state.currentPlayer}! 🌿`;
-  updateWallet();
-  renderMarkets();
-  setMobileNav('markets');
+  document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
+  updateWallet(); renderMarkets(); setMobileNav('markets');
 }
 function showTab(tab) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  const btn = document.getElementById('tab-btn-'+tab);
-  if (btn) btn.classList.add('active');
-  ['markets','leaderboard','wishes'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  const btn=document.getElementById('tab-btn-'+tab); if(btn) btn.classList.add('active');
+  ['markets','leaderboard','wishes'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none';
   });
-  if (tab==='leaderboard') renderLeaderboard();
-  if (tab==='wishes') renderWishes();
+  if(tab==='leaderboard') renderLeaderboard();
+  if(tab==='wishes') renderWishes();
 }
 function setMobileNav(tab) {
-  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-  const el = document.getElementById('mnav-'+tab);
-  if (el) el.classList.add('active');
-  // Hide mobile nav when not in app screen
-  const mNav = document.getElementById('mobileNav');
-  if (mNav) mNav.style.display = document.getElementById('app').classList.contains('active') ? 'block' : 'none';
+  document.querySelectorAll('.mobile-nav-btn').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('mnav-'+tab); if(el) el.classList.add('active');
 }
 function updateWallet() {
-  const p = state.players[state.currentPlayer];
-  if (p) document.getElementById('walletDisplay').textContent = p.coins;
+  const p=state.players[currentPlayer];
+  if(p) document.getElementById('walletDisplay').textContent=p.coins;
 }
 
 // ===================== MARKETS =====================
 let pendingOption = {};
-function escQ(s) { return s.replace(/'/g,"\\'"); }
+function escQ(s){return s.replace(/'/g,"\\'")}
 
 function renderMarkets() {
-  const grid = document.getElementById('marketsGrid');
-  const p = state.players[state.currentPlayer];
+  const grid=document.getElementById('marketsGrid');
+  const p=state.players[currentPlayer];
+  if(!p||!grid) return;
 
-  grid.innerHTML = MARKETS.map(m => {
-    const myBet = p.bets[m.id];
-    const resolved = state.resolved[m.id];
+  grid.innerHTML=MARKETS.map(m=>{
+    const myBet=p.bets?.[m.id];
+    const resolved=state.resolved[m.id];
 
-    // Special: baby name guess
-    if (m.isNameGuess) {
-      const myGuess = p.nameGuess || '';
-      const isResolved = state.nameGuessWinner;
+    if(m.isNameGuess){
+      const myGuess=p.nameGuess||'';
+      const isResolved=state.nameGuessWinner;
       return `<div class="market-card">
-        <div class="market-header">
-          <div class="market-question">${m.question}</div>
-          <span class="market-tag">${m.tag}</span>
-        </div>
+        <div class="market-header"><div class="market-question">${m.question}</div><span class="market-tag">${m.tag}</span></div>
         ${isResolved
-          ? `<p style="color:var(--duckling-dark);font-weight:700;">🎉 The name was: <strong>${state.nameGuessAnswer||'?'}</strong></p>
-             ${state.nameGuessWinner===state.currentPlayer ? '<p style="color:var(--grass);font-weight:700;margin-top:4px;">🏆 You guessed correctly!</p>' : ''}`
-          : `<div class="name-guess-zone">
+          ?`<p style="color:var(--duckling-dark);font-weight:700;">🎉 The name was: <strong>${state.nameGuessAnswer||'?'}</strong></p>
+             ${state.nameGuessWinner===currentPlayer?'<p style="color:var(--grass);font-weight:700;margin-top:4px;">🏆 You guessed correctly!</p>':''}`
+          :`<div class="name-guess-zone">
               <input class="name-guess-input" type="text" id="nameGuessInput" placeholder="Your guess for baby's name..." value="${myGuess}" maxlength="40" />
               <button class="btn btn-duckling btn-sm" onclick="saveNameGuess()">Save ✓</button>
             </div>
-            ${myGuess ? `<p style="font-size:0.82rem;color:var(--soft);margin-top:6px;">Your guess: <strong>${myGuess}</strong></p>` : ''}`
+            ${myGuess?`<p style="font-size:0.82rem;color:var(--soft);margin-top:6px;">Your guess: <strong>${myGuess}</strong></p>`:''}`
         }
       </div>`;
     }
 
-    const totalByOpt = getTotals(m.id);
-    const totalAll = Object.values(totalByOpt).reduce((a,b)=>a+b,0);
-    const optionsHtml = m.options.map(opt => {
-      const pct = totalAll ? Math.round((totalByOpt[opt]||0)/totalAll*100) : Math.round(100/m.options.length);
-      const voters = getVoters(m.id, opt);
-      const isMyBet = myBet && myBet.option===opt;
-      const isWinner = resolved===opt;
-      let cls = 'option-btn'+(isMyBet?' my-bet':'');
+    const totalByOpt=getTotals(m.id);
+    const totalAll=Object.values(totalByOpt).reduce((a,b)=>a+b,0);
+    const optionsHtml=m.options.map(opt=>{
+      const pct=totalAll?Math.round((totalByOpt[opt]||0)/totalAll*100):Math.round(100/m.options.length);
+      const voters=getVoters(m.id,opt);
+      const isMyBet=myBet&&myBet.option===opt;
+      const isWinner=resolved===opt;
+      let cls='option-btn'+(isMyBet?' my-bet':'');
       return `<button class="${cls}" style="--pct:${pct}%" onclick="selectOption('${m.id}','${escQ(opt)}')" ${resolved?'disabled':''}>
         <span class="option-label">${opt}${isMyBet?' '+COIN+myBet.amount:''}${isWinner?' ✓':''}</span>
         <span class="option-voters">${voters} bet${voters!==1?'s':''}</span>
         <span class="option-pct">${pct}%</span>
       </button>`;
     }).join('');
-    const resolvedBadge = resolved ? `<span class="resolved-badge">🐣 Resolved: ${resolved}</span>` : '';
-    const winMsg = resolved && myBet && myBet.option===resolved
-      ? `<p style="color:var(--duckling-dark);font-weight:800;margin-top:6px;">🎉 You called it!</p>` : '';
+    const resolvedBadge=resolved?`<span class="resolved-badge">🐣 Resolved: ${resolved}</span>`:'';
+    const winMsg=resolved&&myBet&&myBet.option===resolved?`<p style="color:var(--duckling-dark);font-weight:800;margin-top:6px;">🎉 You called it!</p>`:'';
 
     return `<div class="market-card">
-      <div class="market-header">
-        <div class="market-question">${m.question}</div>
-        <span class="market-tag">${m.tag}</span>
-      </div>
+      <div class="market-header"><div class="market-question">${m.question}</div><span class="market-tag">${m.tag}</span></div>
       <div class="options-list">${optionsHtml}</div>
       ${resolvedBadge}${winMsg}
       <div class="bet-zone" id="bet-${m.id}">
-        <div class="bet-row">
-          <span class="bet-label">Betting on:</span>
-          <span class="bet-selected-opt" id="betLabel-${m.id}"><em>pick above</em></span>
-        </div>
+        <div class="bet-row"><span class="bet-label">Betting on:</span><span class="bet-selected-opt" id="betLabel-${m.id}"><em>pick above</em></span></div>
         <div class="bet-row">
           <span class="bet-label">Amount:</span>
           <input class="bet-input" type="number" min="1" max="${STARTING_COINS}" value="50" id="betAmt-${m.id}" />
@@ -749,7 +798,7 @@ function renderMarkets() {
           </div>
         </div>
         <div class="bet-confirm-row">
-          <button class="btn btn-duckling" onclick="placeBet('${m.id}')">Place Bet ${COIN}</button>
+          <button class="btn btn-duckling" id="betConfirmBtn-${m.id}" onclick="placeBet('${m.id}')">Place Bet ${COIN}</button>
           <button class="btn btn-ghost" onclick="closeBet('${m.id}')">Cancel</button>
         </div>
       </div>
@@ -757,64 +806,71 @@ function renderMarkets() {
   }).join('');
 }
 
-function saveNameGuess() {
-  const val = document.getElementById('nameGuessInput')?.value.trim();
-  if (!val) return;
-  state.players[state.currentPlayer].nameGuess = val;
-  saveState();
+async function saveNameGuess() {
+  const val=document.getElementById('nameGuessInput')?.value.trim();
+  if(!val) return;
+  await update(ref(db,`players/${currentPlayer}`),{nameGuess:val});
   toast(`Name guess saved: "${val}" 🐥`);
-  renderMarkets();
 }
 
-function selectOption(marketId, option) {
-  if (state.resolved[marketId]) return;
-  const p = state.players[state.currentPlayer];
-  if (p.bets[marketId]) { toast("You've already placed a bet here!"); return; }
-  pendingOption[marketId] = option;
-  document.getElementById(`betLabel-${marketId}`).innerHTML = `<strong>${option}</strong>`;
+function selectOption(marketId,option) {
+  if(state.resolved[marketId]) return;
+  const p=state.players[currentPlayer];
+  if(p?.bets?.[marketId]){toast("You've already placed a bet here!");return;}
+  pendingOption[marketId]=option;
+  document.getElementById(`betLabel-${marketId}`).innerHTML=`<strong>${option}</strong>`;
   document.getElementById(`bet-${marketId}`).classList.add('open');
   document.getElementById(`bet-${marketId}`).scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function closeBet(mid) { document.getElementById(`bet-${mid}`).classList.remove('open'); delete pendingOption[mid]; }
-function setAmt(mid, amt) { document.getElementById(`betAmt-${mid}`).value = amt; }
+function closeBet(mid){document.getElementById(`bet-${mid}`).classList.remove('open');delete pendingOption[mid];}
+function setAmt(mid,amt){document.getElementById(`betAmt-${mid}`).value=amt;}
 
-function placeBet(marketId) {
-  const p = state.players[state.currentPlayer];
-  const opt = pendingOption[marketId];
-  if (!opt) { toast('Pick an option first!'); return; }
-  const amt = parseInt(document.getElementById(`betAmt-${marketId}`).value);
-  if (!amt||amt<1) { toast('Enter a valid amount!'); return; }
-  if (amt>p.coins) { toast(`You only have ${COIN} ${p.coins}!`); return; }
-  p.coins -= amt;
-  p.bets[marketId] = { option:opt, amount:amt };
-  saveState(); updateWallet();
-  playQuack();
-  toast(`${COIN} ${amt} bread crumbs on "${opt}"!`);
-  closeBet(marketId);
-  renderMarkets();
+async function placeBet(marketId) {
+  const p=state.players[currentPlayer];
+  const opt=pendingOption[marketId];
+  if(!opt){toast('Pick an option first!');return;}
+  const amt=parseInt(document.getElementById(`betAmt-${marketId}`).value);
+  if(!amt||amt<1){toast('Enter a valid amount!');return;}
+  if(amt>p.coins){toast(`You only have ${COIN} ${p.coins}!`);return;}
+
+  // Disable button to prevent double-clicks
+  const btn=document.getElementById(`betConfirmBtn-${marketId}`);
+  if(btn){btn.disabled=true;btn.textContent='Saving...';}
+
+  try {
+    const newCoins=p.coins-amt;
+    await update(ref(db,`players/${currentPlayer}`),{
+      coins: newCoins,
+      [`bets/${marketId}`]: {option:opt, amount:amt}
+    });
+    playQuack();
+    toast(`${COIN} ${amt} bread crumbs on "${opt}"!`);
+    closeBet(marketId);
+  } catch(err) {
+    toast('Error saving bet — try again!');
+    if(btn){btn.disabled=false;btn.textContent=`Place Bet ${COIN}`;}
+  }
 }
 
 function getTotals(mid) {
   const t={};
-  Object.values(state.players).forEach(p=>{const b=p.bets[mid];if(b) t[b.option]=(t[b.option]||0)+b.amount;});
+  Object.values(state.players).forEach(p=>{const b=p.bets?.[mid];if(b)t[b.option]=(t[b.option]||0)+b.amount;});
   return t;
 }
-function getVoters(mid, opt) { return Object.values(state.players).filter(p=>p.bets[mid]?.option===opt).length; }
+function getVoters(mid,opt){return Object.values(state.players).filter(p=>p.bets?.[mid]?.option===opt).length;}
 
 // ===================== LEADERBOARD =====================
 function renderLeaderboard() {
-  const list = document.getElementById('leaderboardList');
-  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,bets:Object.keys(p.bets).length,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
-  if (!scores.length) { list.innerHTML='<div class="empty-state">No players yet!</div>'; return; }
+  const list=document.getElementById('leaderboardList');
+  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0,bets:Object.keys(p.bets||{}).length,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
+  if(!scores.length){list.innerHTML='<div class="empty-state">No players yet!</div>';return;}
   const medals=['🥇','🥈','🥉'];
-  list.innerHTML = scores.map((s,i)=>{
-    const isMe = s.name===state.currentPlayer;
-    const avatarHtml = s.photo
-      ? `<img class="lb-avatar" src="${s.photo}" alt="${s.name}" />`
-      : `<div class="lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
+  list.innerHTML=scores.map((s,i)=>{
+    const isMe=s.name===currentPlayer;
+    const avHtml=s.photo?`<img class="lb-avatar" src="${s.photo}" alt="${s.name}" />`:`<div class="lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
     return `<div class="lb-row ${isMe?'me':''}">
       <div class="lb-rank ${i<3?'top':''}">${medals[i]||i+1}</div>
-      ${avatarHtml}
+      ${avHtml}
       <div class="lb-name">${s.name} ${isMe?'<span class="lb-you">YOU</span>':''}</div>
       <div class="lb-bets">${s.bets} bet${s.bets!==1?'s':''}</div>
       <div class="lb-coins">${COIN} ${s.coins}</div>
@@ -823,48 +879,39 @@ function renderLeaderboard() {
 }
 
 // ===================== WELL WISHES =====================
-function postWish() {
-  const text = document.getElementById('wishText').value.trim();
-  if (!text) { toast('Write something first!'); return; }
-  state.wishes = state.wishes || [];
-  state.wishes.unshift({ name: state.currentPlayer, text, photo: state.players[state.currentPlayer]?.photo||null, ts: Date.now() });
-  saveState();
-  document.getElementById('wishText').value = '';
+async function postWish() {
+  const text=document.getElementById('wishText').value.trim();
+  if(!text){toast('Write something first!');return;}
+  await push(ref(db,'wishes'),{
+    name:currentPlayer,
+    text,
+    photo:state.players[currentPlayer]?.photo||null,
+    ts:Date.now()
+  });
+  document.getElementById('wishText').value='';
   toast('Wish sent! 🌿');
-  renderWishes();
 }
-
 function renderWishes() {
-  const list = document.getElementById('wishesList');
-  const wishes = state.wishes || [];
-  if (!wishes.length) { list.innerHTML='<div class="empty-state">Be the first to leave a wish! 🌿</div>'; return; }
-  list.innerHTML = wishes.map(w => {
-    const avatarHtml = w.photo
-      ? `<img class="wish-avatar" src="${w.photo}" alt="${w.name}" />`
-      : `<div class="wish-avatar">${w.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="wish-card">
-      <div class="wish-author">${avatarHtml}<span class="wish-name">${w.name}</span></div>
-      <div class="wish-text">"${w.text}"</div>
-    </div>`;
+  const list=document.getElementById('wishesList');
+  const wishes=state.wishes||[];
+  if(!wishes.length){list.innerHTML='<div class="empty-state">Be the first to leave a wish! 🌿</div>';return;}
+  list.innerHTML=wishes.map(w=>{
+    const avHtml=w.photo?`<img class="wish-avatar" src="${w.photo}" alt="${w.name}" />`:`<div class="wish-avatar">${w.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="wish-card"><div class="wish-author">${avHtml}<span class="wish-name">${w.name}</span></div><div class="wish-text">"${w.text}"</div></div>`;
   }).join('');
 }
 
 // ===================== TV MODE =====================
-function renderTV() {
-  renderTVGrid();
-  renderTVLeaderboard();
-}
-
+function renderTV(){renderTVGrid();renderTVLeaderboard();}
 function renderTVGrid() {
-  const grid = document.getElementById('tvGrid');
-  if (!grid) return;
-  grid.innerHTML = MARKETS.filter(m=>!m.isNameGuess).map(m => {
-    const totalByOpt = getTotals(m.id);
-    const totalAll = Object.values(totalByOpt).reduce((a,b)=>a+b,0);
-    const maxPct = totalAll ? Math.max(...m.options.map(o=>Math.round((totalByOpt[o]||0)/totalAll*100))) : 0;
-    const barsHtml = m.options.map(opt => {
-      const pct = totalAll ? Math.round((totalByOpt[opt]||0)/totalAll*100) : Math.round(100/m.options.length);
-      const isLeading = pct===maxPct && totalAll>0;
+  const grid=document.getElementById('tvGrid'); if(!grid) return;
+  grid.innerHTML=MARKETS.filter(m=>!m.isNameGuess).map(m=>{
+    const totalByOpt=getTotals(m.id);
+    const totalAll=Object.values(totalByOpt).reduce((a,b)=>a+b,0);
+    const maxPct=totalAll?Math.max(...m.options.map(o=>Math.round((totalByOpt[o]||0)/totalAll*100))):0;
+    const barsHtml=m.options.map(opt=>{
+      const pct=totalAll?Math.round((totalByOpt[opt]||0)/totalAll*100):Math.round(100/m.options.length);
+      const isLeading=pct===maxPct&&totalAll>0;
       return `<div class="tv-bar-row">
         <div class="tv-bar-label" title="${opt}">${opt}</div>
         <div class="tv-bar-track"><div class="tv-bar-fill ${isLeading?'leading':''}" style="width:${pct}%"></div></div>
@@ -874,37 +921,23 @@ function renderTVGrid() {
     return `<div class="tv-card"><div class="tv-card-q">${m.question}</div>${barsHtml}</div>`;
   }).join('');
 }
-
 function renderTVLeaderboard() {
-  const lb = document.getElementById('tvLeaderboard');
-  if (!lb) return;
+  const lb=document.getElementById('tvLeaderboard'); if(!lb) return;
   const medals=['🥇','🥈','🥉'];
-  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,photo:p.photo})).sort((a,b)=>b.coins-a.coins).slice(0,8);
-  lb.innerHTML = scores.map((s,i)=>{
-    const avatarHtml = s.photo
-      ? `<img class="tv-lb-avatar" src="${s.photo}" alt="${s.name}" />`
-      : `<div class="tv-lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="tv-lb-row">
-      <div class="tv-lb-rank">${medals[i]||i+1}</div>
-      ${avatarHtml}
-      <div class="tv-lb-name">${s.name}</div>
-      <div class="tv-lb-coins">${COIN} ${s.coins}</div>
-    </div>`;
-  }).join('') || '<div style="color:rgba(255,255,255,0.4);font-size:0.88rem;">Waiting for players...</div>';
+  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0,photo:p.photo})).sort((a,b)=>b.coins-a.coins).slice(0,8);
+  lb.innerHTML=scores.map((s,i)=>{
+    const avHtml=s.photo?`<img class="tv-lb-avatar" src="${s.photo}" alt="${s.name}" />`:`<div class="tv-lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="tv-lb-row"><div class="tv-lb-rank">${medals[i]||i+1}</div>${avHtml}<div class="tv-lb-name">${s.name}</div><div class="tv-lb-coins">${COIN} ${s.coins}</div></div>`;
+  }).join('')||'<div style="color:rgba(255,255,255,0.4);font-size:0.88rem;">Waiting for players...</div>';
 }
-
-// Auto-refresh TV mode every 5s
-setInterval(()=>{
-  if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
-}, 5000);
 
 // ===================== ADMIN =====================
 function renderAdmin() {
-  const grid = document.getElementById('adminGrid');
-  grid.innerHTML = MARKETS.map(m => {
-    if (m.isNameGuess) {
-      const winner = state.nameGuessWinner;
-      const allGuesses = Object.entries(state.players).filter(([,p])=>p.nameGuess).map(([name,p])=>`${name}: "${p.nameGuess}"`).join('<br>');
+  const grid=document.getElementById('adminGrid');
+  grid.innerHTML=MARKETS.map(m=>{
+    if(m.isNameGuess){
+      const winner=state.nameGuessWinner;
+      const allGuesses=Object.entries(state.players).filter(([,p])=>p.nameGuess).map(([name,p])=>`${name}: "${p.nameGuess}"`).join('<br>');
       return `<div class="resolve-card">
         <div class="resolve-q">${m.question}</div>
         <div style="font-size:0.83rem;color:var(--soft);margin-bottom:10px;line-height:1.8">${allGuesses||'No guesses yet'}</div>
@@ -913,12 +946,12 @@ function renderAdmin() {
           <input class="name-award-input" id="nameWinnerInput" placeholder="Winner's name..." />
           <button class="btn btn-pond btn-sm" onclick="resolveNameGuess()">Award 🏆</button>
         </div>
-        ${winner ? `<p style="font-size:0.83rem;color:var(--soft);margin-top:6px">✓ Winner: <strong>${winner}</strong> (name: ${state.nameGuessAnswer})</p>` : ''}
+        ${winner?`<p style="font-size:0.83rem;color:var(--soft);margin-top:6px">✓ Winner: <strong>${winner}</strong> (name: ${state.nameGuessAnswer})</p>`:''}
       </div>`;
     }
-    const resolved = state.resolved[m.id];
-    const optsHtml = m.options.map(opt=>{
-      const cls = resolved===opt?'resolve-opt-btn resolved-winner':'resolve-opt-btn';
+    const resolved=state.resolved[m.id];
+    const optsHtml=m.options.map(opt=>{
+      const cls=resolved===opt?'resolve-opt-btn resolved-winner':'resolve-opt-btn';
       return `<button class="${cls}" onclick="resolveMarket('${m.id}','${escQ(opt)}')">${opt}</button>`;
     }).join('');
     return `<div class="resolve-card">
@@ -929,165 +962,142 @@ function renderAdmin() {
   }).join('');
 }
 
-function resolveNameGuess() {
-  const answer = document.getElementById('nameAnswerInput')?.value.trim();
-  const winner = document.getElementById('nameWinnerInput')?.value.trim();
-  if (!answer||!winner) { toast('Enter both the name and winner!'); return; }
-  state.nameGuessAnswer = answer;
-  state.nameGuessWinner = winner;
-  // Award 200 bonus coins to winner
-  if (state.players[winner]) { state.players[winner].coins += 200; toast(`🏆 ${winner} awarded 200 ${COIN} for guessing the name!`); }
-  saveState(); renderAdmin();
+async function resolveNameGuess() {
+  const answer=document.getElementById('nameAnswerInput')?.value.trim();
+  const winner=document.getElementById('nameWinnerInput')?.value.trim();
+  if(!answer||!winner){toast('Enter both the name and winner!');return;}
+  const updates={nameGuessAnswer:answer,nameGuessWinner:winner};
+  if(state.players[winner]){
+    updates[`players/${winner}/coins`]=(state.players[winner].coins||0)+200;
+    toast(`🏆 ${winner} awarded 200 ${COIN} for guessing the name!`);
+  }
+  await update(ref(db),updates);
+  renderAdmin();
 }
 
-function resolveMarket(marketId, winner) {
-  if (state.resolved[marketId]) { if (!confirm('Re-resolve?')) return; undoPayouts(marketId); }
-  state.resolved[marketId] = winner;
-  payoutWinners(marketId, winner);
-  saveState(); toast(`🐣 Resolved: ${winner}`); renderAdmin();
+async function resolveMarket(marketId,winner) {
+  if(state.resolved[marketId]){if(!confirm('Re-resolve?'))return; await undoPayouts(marketId);}
+  const updates={[`resolved/${marketId}`]:winner};
+  // Calculate and write payouts
+  const totals=getTotals(marketId);
+  const totalPool=Object.values(totals).reduce((a,b)=>a+b,0);
+  const winnerPool=totals[winner]||0;
+  if(winnerPool){
+    Object.entries(state.players).forEach(([name,p])=>{
+      const b=p.bets?.[marketId];
+      if(b&&b.option===winner){
+        const payout=Math.round(totalPool*(b.amount/winnerPool));
+        updates[`players/${name}/coins`]=(p.coins||0)+payout;
+        updates[`players/${name}/_payouts/${marketId}`]=payout;
+      }
+    });
+  }
+  await update(ref(db),updates);
+  toast(`🐣 Resolved: ${winner}`);
+  renderAdmin();
 }
 
-function payoutWinners(marketId, winner) {
-  const totals = getTotals(marketId);
-  const totalPool = Object.values(totals).reduce((a,b)=>a+b,0);
-  const winnerPool = totals[winner]||0; if (!winnerPool) return;
-  Object.values(state.players).forEach(p=>{
-    const b=p.bets[marketId];
-    if(b&&b.option===winner){
-      const payout=Math.round(totalPool*(b.amount/winnerPool));
-      p.coins+=payout; p._payouts=p._payouts||{}; p._payouts[marketId]=payout;
+async function undoPayouts(marketId) {
+  const updates={[`resolved/${marketId}`]:null};
+  Object.entries(state.players).forEach(([name,p])=>{
+    if(p._payouts?.[marketId]){
+      updates[`players/${name}/coins`]=(p.coins||0)-p._payouts[marketId];
+      updates[`players/${name}/_payouts/${marketId}`]=null;
     }
   });
-}
-function undoPayouts(marketId) {
-  Object.values(state.players).forEach(p=>{
-    if(p._payouts?.[marketId]){p.coins-=p._payouts[marketId];delete p._payouts[marketId];}
-  });
+  await update(ref(db),updates);
 }
 
 // ===================== RESULTS =====================
-function showResultsScreen() {
+function showResultsScreen(){
   showScreen('resultsScreen');
-  renderResultsPodium();
-  renderResultsGrid();
-  setTimeout(launchConfetti, 400);
+  renderResultsPodium();renderResultsGrid();
+  setTimeout(launchConfetti,400);
 }
-
 function renderResultsPodium() {
-  const podium = document.getElementById('winnerPodium');
-  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
-  const order = [scores[1], scores[0], scores[2]].filter(Boolean);
-  const configs = [
-    {cls:'silver', blockCls:'silver', medalCls:'silver', block:'podium-block silver', medal:'🥈'},
-    {cls:'', blockCls:'gold', medalCls:'', block:'podium-block gold', medal:'🥇'},
-    {cls:'bronze', blockCls:'bronze', medalCls:'bronze', block:'podium-block bronze', medal:'🥉'}
+  const podium=document.getElementById('winnerPodium');
+  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
+  const order=[scores[1],scores[0],scores[2]].filter(Boolean);
+  const configs=[
+    {cls:'silver',block:'podium-block silver',medal:'🥈'},
+    {cls:'',block:'podium-block gold',medal:'🥇'},
+    {cls:'bronze',block:'podium-block bronze',medal:'🥉'}
   ];
-  podium.innerHTML = order.map((s,i)=>{
-    if (!s) return '<div></div>';
-    const c = configs[i];
-    const avHtml = s.photo
-      ? `<img class="podium-avatar ${c.cls}" src="${s.photo}" alt="${s.name}" />`
-      : `<div class="podium-avatar ${c.cls}">${s.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="podium-slot">
-      <div class="podium-avatar-wrap">${avHtml}</div>
-      <div class="podium-name">${s.name}</div>
-      <div class="podium-coins ${c.medalCls}">${COIN} ${s.coins}</div>
-      <div class="${c.block}"><span class="podium-medal">${c.medal}</span></div>
-    </div>`;
+  podium.innerHTML=order.map((s,i)=>{
+    if(!s)return '<div></div>';
+    const c=configs[i];
+    const avHtml=s.photo?`<img class="podium-avatar ${c.cls}" src="${s.photo}" alt="${s.name}" />`:`<div class="podium-avatar ${c.cls}">${s.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="podium-slot"><div class="podium-avatar-wrap">${avHtml}</div><div class="podium-name">${s.name}</div><div class="podium-coins ${c.cls}">${COIN} ${s.coins}</div><div class="${c.block}"><span class="podium-medal">${c.medal}</span></div></div>`;
   }).join('');
 }
-
 function renderResultsGrid() {
-  const grid = document.getElementById('resultsGrid');
-  grid.innerHTML = MARKETS.filter(m=>!m.isNameGuess).map(m=>{
-    const resolved = state.resolved[m.id];
-    if (!resolved) return '';
-    const winners = Object.entries(state.players).filter(([,p])=>p.bets[m.id]?.option===resolved).map(([name])=>name);
-    return `<div class="result-card">
-      <div class="result-card-q">${m.question}</div>
-      <div class="result-winner-opt">✓ ${resolved}</div>
-      <div class="result-correct-bettors">${winners.length ? '🎉 '+winners.join(', ') : 'Nobody called it!'}</div>
-    </div>`;
+  const grid=document.getElementById('resultsGrid');
+  grid.innerHTML=MARKETS.filter(m=>!m.isNameGuess).map(m=>{
+    const resolved=state.resolved[m.id]; if(!resolved)return '';
+    const winners=Object.entries(state.players).filter(([,p])=>p.bets?.[m.id]?.option===resolved).map(([name])=>name);
+    return `<div class="result-card"><div class="result-card-q">${m.question}</div><div class="result-winner-opt">✓ ${resolved}</div><div class="result-correct-bettors">${winners.length?'🎉 '+winners.join(', '):'Nobody called it!'}</div></div>`;
   }).join('');
 }
 
 // ===================== CERTIFICATE =====================
 function showCertificate() {
-  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins})).sort((a,b)=>b.coins-a.coins);
-  if (!scores.length) return;
-  const winner = scores[0];
-  document.getElementById('certName').textContent = winner.name;
-  document.getElementById('certCoins').textContent = `${COIN} ${winner.coins} bread crumbs`;
+  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
+  if(!scores.length)return;
+  const winner=scores[0];
+  document.getElementById('certName').textContent=winner.name;
+  document.getElementById('certCoins').textContent=`${COIN} ${winner.coins} bread crumbs`;
   document.getElementById('certOverlay').classList.add('open');
 }
-
 function downloadCertificate() {
-  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins})).sort((a,b)=>b.coins-a.coins);
-  if (!scores.length) return;
-  const w = scores[0];
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
-  <style>body{margin:0;background:#FBF7EE;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;}
-  .cert{max-width:600px;width:90%;padding:48px;text-align:center;border:6px solid #A8CC88;border-radius:24px;background:linear-gradient(160deg,#FBF7EE,#EFF8F0);position:relative;}
-  h1{font-family:'Lora',serif;font-size:2.8rem;color:#4A7C8E;font-style:italic;margin:12px 0;}
-  .name{font-family:'Lora',serif;font-size:3rem;font-weight:700;color:#2C3E2D;margin:16px 0;}
-  .sub{font-size:0.8rem;color:#4A5E3A;text-transform:uppercase;letter-spacing:.2em;font-weight:700;}
-  .body{font-size:1rem;color:#4A5E3A;line-height:1.8;margin:16px 0;}
-  .badge{display:inline-block;background:linear-gradient(135deg,#F5C842,#C99A10);color:#2C3E2D;padding:8px 24px;border-radius:100px;font-weight:800;margin:12px 0;}
-  .sig{font-family:'Lora',serif;font-style:italic;font-size:1.3rem;color:#4A7C8E;margin-top:16px;}
-  </style></head><body>
-  <div class="cert">
-    <div style="font-size:4rem">🏆</div>
-    <div class="sub">Official Certificate of Achievement</div>
-    <h1>Baby Prophet</h1>
-    <div class="name">${w.name}</div>
-    <div class="body">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div>
-    <div class="badge">🍞 ${w.coins} bread crumbs</div>
-    <div style="font-size:1.4rem;margin:12px 0">🌿 🦆 🌿 🦆 🌿</div>
-    <div class="sig">Make Way for Baby · May 16, 2026</div>
-    <div style="font-size:1.8rem;letter-spacing:8px;margin-top:12px;opacity:.5">🐥 🐥 🐥 🐥 🐥</div>
-  </div></body></html>`;
-  const blob = new Blob([html], {type:'text/html'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `baby-prophet-certificate-${w.name.replace(/\s+/g,'-')}.html`;
-  a.click();
+  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
+  if(!scores.length)return;
+  const w=scores[0];
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#FBF7EE;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;}.cert{max-width:600px;width:90%;padding:48px;text-align:center;border:6px solid #A8CC88;border-radius:24px;background:linear-gradient(160deg,#FBF7EE,#EFF8F0);}h1{font-family:'Lora',serif;font-size:2.8rem;color:#4A7C8E;font-style:italic;margin:12px 0;}.name{font-family:'Lora',serif;font-size:3rem;font-weight:700;color:#2C3E2D;margin:16px 0;}.sub{font-size:0.8rem;color:#4A5E3A;text-transform:uppercase;letter-spacing:.2em;font-weight:700;}.body{font-size:1rem;color:#4A5E3A;line-height:1.8;margin:16px 0;}.badge{display:inline-block;background:linear-gradient(135deg,#F5C842,#C99A10);color:#2C3E2D;padding:8px 24px;border-radius:100px;font-weight:800;margin:12px 0;}.sig{font-family:'Lora',serif;font-style:italic;font-size:1.3rem;color:#4A7C8E;margin-top:16px;}</style></head><body><div class="cert"><div style="font-size:4rem">🏆</div><div class="sub">Official Certificate of Achievement</div><h1>Baby Prophet</h1><div class="name">${w.name}</div><div class="body">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div><div class="badge">🍞 ${w.coins} bread crumbs</div><div style="font-size:1.4rem;margin:12px 0">🌿 🦆 🌿 🦆 🌿</div><div class="sig">Make Way for Baby · May 16, 2026</div><div style="font-size:1.8rem;letter-spacing:8px;margin-top:12px;opacity:.5">🐥 🐥 🐥 🐥 🐥</div></div></body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`baby-prophet-certificate-${w.name.replace(/\s+/g,'-')}.html`; a.click();
   toast('Certificate downloaded! 🏅');
 }
 
 // ===================== CONFETTI =====================
 function launchConfetti() {
-  const colors = ['#F5C842','#4A7C8E','#A8CC88','#E8756A','#C5A8C0','#6FA3B5'];
-  for (let i=0;i<120;i++) {
+  const colors=['#F5C842','#4A7C8E','#A8CC88','#E8756A','#C5A8C0','#6FA3B5'];
+  for(let i=0;i<120;i++){
     setTimeout(()=>{
-      const el = document.createElement('div');
-      el.className = 'confetti-piece';
-      el.style.cssText = `
-        left:${Math.random()*100}vw;
-        background:${colors[Math.floor(Math.random()*colors.length)]};
-        width:${6+Math.random()*10}px;
-        height:${6+Math.random()*10}px;
-        border-radius:${Math.random()>0.5?'50%':'2px'};
-        animation-duration:${2+Math.random()*3}s;
-        animation-delay:${Math.random()*1.5}s;
-        transform:rotate(${Math.random()*360}deg);
-      `;
-      document.body.appendChild(el);
-      setTimeout(()=>el.remove(), 5000);
-    }, i*20);
+      const el=document.createElement('div'); el.className='confetti-piece';
+      el.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*1.5}s;transform:rotate(${Math.random()*360}deg);`;
+      document.body.appendChild(el); setTimeout(()=>el.remove(),5000);
+    },i*20);
   }
 }
 
 // ===================== TOAST =====================
 function toast(msg) {
-  const t = document.createElement('div');
-  t.className='toast'; t.textContent=msg;
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(()=>t.remove(),3200);
 }
 
+// ===================== EXPOSE GLOBALS for onclick handlers =====================
+// Since we're using type="module", functions aren't global by default
+Object.assign(window,{
+  joinGame,showAdminLogin,goBack,enterTVMode,exitTVMode,
+  showTab,setMobileNav,handlePhotoUpload,
+  selectOption,closeBet,setAmt,placeBet,saveNameGuess,
+  postWish,showResultsScreen,showCertificate,downloadCertificate,
+  resolveMarket,resolveNameGuess,renderAdmin
+});
+
 // ===================== INIT =====================
-loadState();
+// Check if returning player
+const savedName = localStorage.getItem('bbpm_player');
+if (savedName) {
+  document.getElementById('nameInput').value = savedName;
+}
+
+// Start listening to Firebase immediately (updates state for everyone)
+startListening();
+</script>
 </script>
 </body>
 </html>
