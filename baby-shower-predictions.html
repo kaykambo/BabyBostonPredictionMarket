@@ -616,108 +616,143 @@ let state = { players:{}, resolved:{}, wishes:[], nameGuessAnswer:null, nameGues
 let currentPlayer = null;
 let photoData = null; // local only — photos stored as base64 in Firebase player record
 
-// ===================== CRAWLING BABY =====================
+// ===================== CRAWLING BABIES =====================
 const BABY_EMOJIS = ['👶','👶🏻','👶🏼','👶🏽','👶🏾','👶🏿'];
+const activeBabies = {}; // playerName -> { wrapper, tag, animFrameId, running }
 
-function spawnCrawlingBaby(playerName) {
-  const directions = ['left-to-right','right-to-left','top-to-bottom','bottom-to-top'];
-  const dir = directions[Math.floor(Math.random() * directions.length)];
-  const duration = 2800 + Math.random() * 2200;
-  const vw = window.innerWidth, vh = window.innerHeight;
+function getPlayerCrawlData(playerName) {
   const photo = state.players[playerName]?.photo || null;
+  return { photo };
+}
 
-  let startX, startY, endX, endY, flipX=1, flipY=1;
-  const rand = () => Math.random();
-  if (dir==='left-to-right') {
-    startX=-100; endX=vw+100; startY=rand()*(vh-120)+40; endY=rand()*(vh-120)+40;
-  } else if (dir==='right-to-left') {
-    startX=vw+100; endX=-100; flipX=-1; startY=rand()*(vh-120)+40; endY=rand()*(vh-120)+40;
-  } else if (dir==='top-to-bottom') {
-    startY=-100; endY=vh+100; startX=rand()*(vw-120)+40; endX=rand()*(vw-120)+40;
-  } else {
-    startY=vh+100; endY=-100; flipY=-1; startX=rand()*(vw-120)+40; endX=rand()*(vw-120)+40;
-  }
+function createBabyElements(playerName) {
+  const { photo } = getPlayerCrawlData(playerName);
 
-  // Wrapper holds both head and body so they move together
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = `position:fixed;z-index:950;pointer-events:none;left:${startX}px;top:${startY}px;display:flex;flex-direction:column;align-items:center;gap:0px;transform:scaleX(${flipX}) scaleY(${flipY});`;
+  wrapper.style.cssText = `position:fixed;z-index:950;pointer-events:none;display:flex;flex-direction:column;align-items:center;`;
 
   if (photo) {
-    // Photo head floating above the baby body
     const head = document.createElement('img');
     head.src = photo;
-    head.style.cssText = `
-      width: 38px; height: 38px; border-radius: 50%;
-      object-fit: cover;
-      border: 2.5px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-      display: block;
-      margin-bottom: -6px;
-      animation: babyHeadBob 0.35s ease-in-out infinite alternate;
-      flex-shrink: 0;
-    `;
+    head.style.cssText = `width:38px;height:38px;border-radius:50%;object-fit:cover;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:block;margin-bottom:-6px;animation:babyHeadBob 0.35s ease-in-out infinite alternate;flex-shrink:0;`;
     wrapper.appendChild(head);
   }
 
-  // Baby body emoji
   const body = document.createElement('div');
-  body.style.cssText = `font-size:${photo ? '2rem' : '2.6rem'};line-height:1;animation:babyWobble 0.35s ease-in-out infinite alternate;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.15));`;
+  body.style.cssText = `font-size:${photo?'2rem':'2.6rem'};line-height:1;animation:babyWobble 0.35s ease-in-out infinite alternate;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.15));`;
   body.textContent = photo ? '🍼' : BABY_EMOJIS[Math.floor(Math.random()*BABY_EMOJIS.length)];
   wrapper.appendChild(body);
 
-  document.body.appendChild(wrapper);
-
-  // Name tag
   const tag = document.createElement('div');
   tag.className = 'baby-name-tag';
-  tag.textContent = `${playerName} joined!`;
+  tag.textContent = `${playerName}`;
+  tag.style.opacity = '1';
+
+  document.body.appendChild(wrapper);
   document.body.appendChild(tag);
+  return { wrapper, tag };
+}
+
+function pickNewPath() {
+  const directions = ['left-to-right','right-to-left','top-to-bottom','bottom-to-top'];
+  const dir = directions[Math.floor(Math.random()*directions.length)];
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const duration = 4000 + Math.random()*4000; // 4–8s per crossing
+  let startX, startY, endX, endY, flipX=1, flipY=1;
+  const r = () => Math.random();
+  if (dir==='left-to-right') {
+    startX=-100; endX=vw+100; startY=r()*(vh-140)+60; endY=r()*(vh-140)+60;
+  } else if (dir==='right-to-left') {
+    startX=vw+100; endX=-100; flipX=-1; startY=r()*(vh-140)+60; endY=r()*(vh-140)+60;
+  } else if (dir==='top-to-bottom') {
+    startY=-100; endY=vh+100; startX=r()*(vw-140)+60; endX=r()*(vw-140)+60;
+  } else {
+    startY=vh+100; endY=-100; flipY=-1; startX=r()*(vw-140)+60; endX=r()*(vw-140)+60;
+  }
+  return { startX, startY, endX, endY, flipX, flipY, duration };
+}
+
+function animateBaby(playerName) {
+  const entry = activeBabies[playerName];
+  if (!entry || !entry.running) return;
+
+  // Refresh photo in case it was uploaded after initial join
+  const newPhoto = state.players[playerName]?.photo || null;
+  const headEl = entry.wrapper.querySelector('img');
+  const bodyEl = entry.wrapper.querySelector('div');
+  if (newPhoto && !headEl) {
+    // Photo was added — rebuild the elements
+    entry.wrapper.remove(); entry.tag.remove();
+    const { wrapper, tag } = createBabyElements(playerName);
+    entry.wrapper = wrapper; entry.tag = tag;
+  } else if (newPhoto && headEl && headEl.src !== newPhoto) {
+    headEl.src = newPhoto;
+  }
+
+  const path = pickNewPath();
+  const { startX, startY, endX, endY, flipX, flipY, duration } = path;
+  entry.wrapper.style.transform = `scaleX(${flipX}) scaleY(${flipY})`;
 
   const startTime = performance.now();
-  function animate(now) {
-    const elapsed = now - startTime;
-    const t = Math.min(elapsed / duration, 1);
+  function frame(now) {
+    if (!entry.running) return;
+    const t = Math.min((now - startTime) / duration, 1);
     const ease = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
     const x = startX + (endX-startX)*ease;
-    const y = startY + (endY-startY)*ease + Math.sin(t*Math.PI*6)*18;
-    wrapper.style.left = x+'px';
-    wrapper.style.top  = y+'px';
-    // Name tag trails just above
-    tag.style.left = (x - 10)+'px';
-    tag.style.top  = (y - 36)+'px';
-    tag.style.opacity = t < 0.1 ? t*10 : t > 0.8 ? (1-t)*5 : 1;
-    if (t < 1) requestAnimationFrame(animate);
-    else { wrapper.remove(); tag.remove(); }
+    const y = startY + (endY-startY)*ease + Math.sin(t*Math.PI*5)*20;
+    entry.wrapper.style.left = x+'px';
+    entry.wrapper.style.top  = y+'px';
+    entry.tag.style.left = (x-10)+'px';
+    entry.tag.style.top  = (y-28)+'px';
+    if (t < 1) {
+      entry.animFrameId = requestAnimationFrame(frame);
+    } else {
+      // Reached the edge — pause briefly then restart from new position
+      setTimeout(() => { if (entry.running) animateBaby(playerName); }, 200 + Math.random()*800);
+    }
   }
-  requestAnimationFrame(animate);
+  entry.animFrameId = requestAnimationFrame(frame);
+}
+
+function addBaby(playerName) {
+  if (activeBabies[playerName]) return; // already exists
+  const { wrapper, tag } = createBabyElements(playerName);
+  activeBabies[playerName] = { wrapper, tag, animFrameId: null, running: true };
+  // Stagger start so they don't all launch at once
+  const delay = Object.keys(activeBabies).length * 400;
+  setTimeout(() => animateBaby(playerName), delay);
+}
+
+function removeBaby(playerName) {
+  const entry = activeBabies[playerName];
+  if (!entry) return;
+  entry.running = false;
+  if (entry.animFrameId) cancelAnimationFrame(entry.animFrameId);
+  entry.wrapper.remove();
+  entry.tag.remove();
+  delete activeBabies[playerName];
+}
+
+function syncBabies() {
+  const currentNames = new Set(Object.keys(state.players));
+  // Add babies for new players
+  currentNames.forEach(name => { if (!activeBabies[name]) addBaby(name); });
+  // Remove babies for players no longer in state (edge case)
+  Object.keys(activeBabies).forEach(name => { if (!currentNames.has(name)) removeBaby(name); });
 }
 
 // ===================== FIREBASE REAL-TIME LISTENER =====================
-// This is the magic: onValue fires every time ANY data changes in Firebase.
-// Everyone's UI updates automatically when anyone places a bet.
 function startListening() {
-  let knownPlayers = null; // track who we've seen to detect NEW joins
-
   onValue(ref(db, '/'), (snapshot) => {
     const data = snapshot.val() || {};
-    const newPlayers = data.players || {};
-
-    // Detect newly joined players and spawn a baby for each
-    if (knownPlayers !== null) {
-      Object.keys(newPlayers).forEach(name => {
-        if (!knownPlayers[name]) {
-          // Small delay so it doesn't fire during initial load
-          setTimeout(() => spawnCrawlingBaby(name), 300);
-        }
-      });
-    }
-    knownPlayers = {...newPlayers};
-
-    state.players  = newPlayers;
+    state.players  = data.players  || {};
     state.resolved = data.resolved || {};
     state.wishes   = data.wishes   ? Object.values(data.wishes).sort((a,b)=>b.ts-a.ts) : [];
     state.nameGuessAnswer = data.nameGuessAnswer || null;
     state.nameGuessWinner = data.nameGuessWinner || null;
+
+    // Keep the baby parade in sync with the player list
+    syncBabies();
 
     // Re-render whatever is currently visible
     if (document.getElementById('app').classList.contains('active')) {
