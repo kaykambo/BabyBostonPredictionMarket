@@ -302,8 +302,7 @@ h1.title em { color: var(--pond); font-style: italic; }
   box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   white-space: nowrap;
   font-family: 'Nunito', sans-serif;
-  opacity: 0;
-  transition: opacity 0.3s;
+  opacity: 1;
 }
 
 /* ====== TOAST ====== */
@@ -718,9 +717,7 @@ function addBaby(playerName) {
   if (activeBabies[playerName]) return; // already exists
   const { wrapper, tag } = createBabyElements(playerName);
   activeBabies[playerName] = { wrapper, tag, animFrameId: null, running: true };
-  // Stagger start so they don't all launch at once
-  const delay = Object.keys(activeBabies).length * 400;
-  setTimeout(() => animateBaby(playerName), delay);
+  animateBaby(playerName);
 }
 
 function removeBaby(playerName) {
@@ -734,11 +731,37 @@ function removeBaby(playerName) {
 }
 
 function syncBabies() {
+  // Only run babies when the main app screen is visible
+  if (!document.getElementById('app').classList.contains('active')) return;
+
   const currentNames = new Set(Object.keys(state.players));
   // Add babies for new players
   currentNames.forEach(name => { if (!activeBabies[name]) addBaby(name); });
-  // Remove babies for players no longer in state (edge case)
+  // Remove babies for players no longer in state
   Object.keys(activeBabies).forEach(name => { if (!currentNames.has(name)) removeBaby(name); });
+}
+
+function pauseAllBabies() {
+  Object.values(activeBabies).forEach(entry => {
+    entry.running = false;
+    if (entry.animFrameId) cancelAnimationFrame(entry.animFrameId);
+    entry.wrapper.style.display = 'none';
+    entry.tag.style.display = 'none';
+  });
+}
+
+function resumeAllBabies() {
+  if (Object.keys(activeBabies).length === 0) {
+    // No babies created yet — create them now
+    syncBabies();
+    return;
+  }
+  Object.entries(activeBabies).forEach(([name, entry]) => {
+    entry.wrapper.style.display = 'flex';
+    entry.tag.style.display = 'block';
+    entry.running = true;
+    animateBaby(name);
+  });
 }
 
 // ===================== FIREBASE REAL-TIME LISTENER =====================
@@ -870,11 +893,16 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   const mNav=document.getElementById('mobileNav');
   if(mNav) mNav.style.display=(id==='app')?'block':'none';
+  // Pause babies when leaving app, resume when returning
+  if(id==='app') resumeAllBabies();
+  else pauseAllBabies();
 }
 function showApp() {
   showScreen('app');
   document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
   updateWallet(); renderMarkets(); setMobileNav('markets');
+  // Kick off the baby parade now that app screen is active
+  syncBabies();
 }
 function showTab(tab) {
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
