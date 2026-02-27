@@ -772,8 +772,9 @@ function renderMarkets() {
       const isMyBet=myBet&&myBet.option===opt;
       const isWinner=resolved===opt;
       let cls='option-btn'+(isMyBet?' my-bet':'');
+      const betLabel=isMyBet?` ${COIN}${myBet.amount} · tap to add more`:'';
       return `<button class="${cls}" style="--pct:${pct}%" onclick="selectOption('${m.id}','${escQ(opt)}')" ${resolved?'disabled':''}>
-        <span class="option-label">${opt}${isMyBet?' '+COIN+myBet.amount:''}${isWinner?' ✓':''}</span>
+        <span class="option-label">${opt}${isMyBet?`<span style="font-size:0.75rem;opacity:0.7;font-weight:500"> ${betLabel}</span>`:''}${isWinner?' ✓':''}</span>
         <span class="option-voters">${voters} bet${voters!==1?'s':''}</span>
         <span class="option-pct">${pct}%</span>
       </button>`;
@@ -816,9 +817,17 @@ async function saveNameGuess() {
 function selectOption(marketId,option) {
   if(state.resolved[marketId]) return;
   const p=state.players[currentPlayer];
-  if(p?.bets?.[marketId]){toast("You've already placed a bet here!");return;}
+  const existingBet=p?.bets?.[marketId];
+  // If they already bet on a DIFFERENT option, block it
+  if(existingBet && existingBet.option!==option){
+    toast(`You already bet on "${existingBet.option}" here!`); return;
+  }
+  // If they already bet on THIS option, open bet zone to add more
   pendingOption[marketId]=option;
-  document.getElementById(`betLabel-${marketId}`).innerHTML=`<strong>${option}</strong>`;
+  const labelEl=document.getElementById(`betLabel-${marketId}`);
+  if(labelEl) labelEl.innerHTML=existingBet
+    ? `<strong>${option}</strong> <span style="color:var(--soft);font-weight:500;font-size:0.82rem">(currently ${COIN}${existingBet.amount} — adding more)</span>`
+    : `<strong>${option}</strong>`;
   document.getElementById(`bet-${marketId}`).classList.add('open');
   document.getElementById(`bet-${marketId}`).scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -833,18 +842,22 @@ async function placeBet(marketId) {
   if(!amt||amt<1){toast('Enter a valid amount!');return;}
   if(amt>p.coins){toast(`You only have ${COIN} ${p.coins}!`);return;}
 
-  // Disable button to prevent double-clicks
   const btn=document.getElementById(`betConfirmBtn-${marketId}`);
   if(btn){btn.disabled=true;btn.textContent='Saving...';}
 
   try {
+    const existingAmt=p.bets?.[marketId]?.amount||0;
+    const newTotal=existingAmt+amt;
     const newCoins=p.coins-amt;
     await update(ref(db,`players/${currentPlayer}`),{
       coins: newCoins,
-      [`bets/${marketId}`]: {option:opt, amount:amt}
+      [`bets/${marketId}`]: {option:opt, amount:newTotal}
     });
     playQuack();
-    toast(`${COIN} ${amt} bread crumbs on "${opt}"!`);
+    const msg=existingAmt>0
+      ? `${COIN} Added ${amt} more! Total on "${opt}": ${newTotal}`
+      : `${COIN} ${amt} bread crumbs on "${opt}"!`;
+    toast(msg);
     closeBet(marketId);
   } catch(err) {
     toast('Error saving bet — try again!');
