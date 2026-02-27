@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make Way for Baby! 🐥</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pond: #4A7C8E;
+  --pond-light: #6FA3B5;
+  --pond-pale: #D6EAF0;
+  --duckling: #F5C842;
+  --duckling-dark: #C99A10;
+  --grass: #7AAE5A;
+  --grass-light: #A8CC88;
+  --cream: #FBF7EE;
+  --dark: #2C3E2D;
+  --soft: #4A5E3A;
+  --card-bg: rgba(255,255,252,0.85);
+  --shadow: 0 6px 28px rgba(44,62,45,0.10);
+  --shadow-lg: 0 14px 44px rgba(44,62,45,0.16);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--cream);
+  color: var(--dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 0%, #D6EAF088 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 15% 85%, #A8CC8855 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 85% 70%, #6FA3B533 0%, transparent 55%),
+    linear-gradient(180deg, #EBF5F8 0%, #FBF7EE 40%);
+  pointer-events: none; z-index: 0;
+}
+.page { position: relative; z-index: 1; }
+
+/* ====== SCREENS ====== */
+.screen { display: none; min-height: 100vh; padding: 24px 16px 80px; max-width: 700px; margin: 0 auto; }
+.screen.active { display: block; }
+#welcome { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 20px; padding-top: 40px; }
+#welcome.active { display: flex; }
+
+/* ====== WELCOME ====== */
+.welcome-duck { font-size: 72px; animation: bobble 3s ease-in-out infinite; filter: drop-shadow(0 8px 16px rgba(74,124,142,0.25)); }
+@keyframes bobble { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-14px) rotate(3deg)} }
+.ducks-row { font-size: 1.8rem; letter-spacing: 5px; animation: waddle 6s ease-in-out infinite; display: block; }
+@keyframes waddle { 0%,100%{transform:translateX(0) rotate(-2deg)} 25%{transform:translateX(6px) rotate(2deg)} 75%{transform:translateX(-6px) rotate(-1deg)} }
+h1.title { font-family: 'Lora', serif; font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.2; color: var(--dark); }
+h1.title em { color: var(--pond); font-style: italic; }
+.subtitle { font-size: 1rem; color: var(--soft); line-height: 1.7; max-width: 400px; }
+.coins-badge { background: linear-gradient(135deg, var(--duckling), var(--duckling-dark)); color: var(--dark); padding: 10px 26px; border-radius: 100px; font-weight: 800; font-size: 0.95rem; box-shadow: 0 4px 16px rgba(245,200,66,0.4); }
+.feather-divider { font-size: 1.2rem; letter-spacing: 8px; opacity: 0.35; }
+.name-form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.name-form input, .name-form textarea {
+  width: 100%; padding: 13px 18px;
+  border: 2px solid var(--pond-pale); border-radius: 14px;
+  background: white; font-family: 'Nunito', sans-serif; font-size: 0.97rem; color: var(--dark);
+  box-shadow: var(--shadow); outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.name-form input:focus, .name-form textarea:focus { border-color: var(--pond-light); box-shadow: 0 0 0 3px rgba(111,163,181,0.2); }
+.name-form input::placeholder, .name-form textarea::placeholder { color: #bbb; }
+
+/* Photo upload */
+.photo-upload-area {
+  width: 100%; padding: 16px;
+  border: 2px dashed var(--pond-pale); border-radius: 14px;
+  background: white; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.9rem; color: var(--soft); font-weight: 600;
+}
+.photo-upload-area:hover { border-color: var(--pond-light); background: #f5fbfd; }
+.photo-preview { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--pond-pale); }
+#photoFileInput { display: none; }
+
+/* ====== COUNTDOWN ====== */
+.countdown-box {
+  background: var(--card-bg); border-radius: 20px; padding: 16px 24px;
+  box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.7);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 360px;
+}
+.countdown-label { font-size: 0.8rem; color: var(--soft); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.countdown-units { display: flex; gap: 10px; align-items: flex-end; }
+.countdown-unit { display: flex; flex-direction: column; align-items: center; }
+.countdown-num { font-family: 'Lora', serif; font-size: 2rem; font-weight: 700; color: var(--pond); line-height: 1; }
+.countdown-unit-label { font-size: 0.68rem; color: var(--soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.countdown-sep { font-size: 1.5rem; color: var(--pond-light); font-weight: 700; line-height: 1.4; }
+
+/* ====== BUTTONS ====== */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 28px; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-size: 0.97rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+.btn-primary { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); }
+.btn-primary:hover { box-shadow: 0 10px 28px rgba(74,124,142,0.45); }
+.btn-secondary { background: white; color: var(--soft); box-shadow: var(--shadow); border: 1.5px solid #dde8d0; }
+.btn-ghost { background: transparent; color: var(--soft); padding: 8px 16px; font-size: 0.88rem; }
+.btn-duckling { background: linear-gradient(135deg, var(--duckling), #e8b820); color: var(--dark); box-shadow: 0 6px 20px rgba(245,200,66,0.4); }
+.btn-duckling:hover { box-shadow: 0 10px 28px rgba(245,200,66,0.5); }
+.btn-pond { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); }
+.btn-sm { padding: 8px 16px; font-size: 0.85rem; border-radius: 10px; }
+
+/* ====== NAV ====== */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 0 24px; border-bottom: 2px dashed #c5ddc6; margin-bottom: 24px; flex-wrap: wrap; gap: 10px; }
+.nav-brand { font-family: 'Lora', serif; font-size: 1.2rem; color: var(--dark); display: flex; align-items: center; gap: 8px; }
+.wallet { display: flex; align-items: center; gap: 7px; background: white; padding: 7px 16px; border-radius: 100px; box-shadow: var(--shadow); font-weight: 800; font-size: 0.9rem; border: 1.5px solid var(--pond-pale); }
+.nav-tabs { display: flex; gap: 3px; background: white; padding: 4px; border-radius: 12px; box-shadow: var(--shadow); border: 1.5px solid var(--pond-pale); flex-wrap: wrap; }
+.nav-tab { padding: 6px 14px; border-radius: 9px; border: none; background: transparent; font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; color: var(--soft); transition: background 0.18s, color 0.18s; }
+.nav-tab.active { background: var(--pond); color: white; }
+
+/* ====== MARKET CARDS ====== */
+.section-title { font-family: 'Lora', serif; font-size: 1.4rem; margin-bottom: 18px; color: var(--dark); }
+.markets-grid { display: flex; flex-direction: column; gap: 16px; }
+.market-card { background: var(--card-bg); backdrop-filter: blur(10px); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+.market-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--pond-light), var(--grass-light)); border-radius: 4px 0 0 4px; }
+.market-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.market-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.market-question { font-family: 'Lora', serif; font-size: 1.05rem; line-height: 1.45; flex: 1; color: var(--dark); }
+.market-tag { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 100px; background: var(--pond-pale); color: var(--pond); white-space: nowrap; }
+.options-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+.option-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: white; border: 2px solid #e2edd3; border-radius: 12px; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--dark); transition: all 0.18s; text-align: left; position: relative; overflow: hidden; }
+.option-btn::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--pct, 0%); background: linear-gradient(90deg, rgba(214,234,240,0.7), rgba(214,234,240,0.3)); border-radius: 10px 0 0 10px; transition: width 0.5s ease; z-index: 0; }
+.option-btn > * { position: relative; z-index: 1; }
+.option-btn:hover { border-color: var(--pond-light); background: #f5fbfd; }
+.option-btn.my-bet { border-color: var(--duckling); background: #fffdf0; }
+.option-btn[disabled] { cursor: default; }
+.option-label { flex: 1; }
+.option-pct { font-size: 0.8rem; color: var(--pond); font-weight: 700; min-width: 32px; text-align: right; }
+.option-voters { font-size: 0.73rem; color: #aaa; font-weight: 600; }
+
+/* name entry for baby name question */
+.name-guess-zone { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.name-guess-input { flex: 1; min-width: 140px; padding: 10px 14px; border: 2px solid #e2edd3; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 0.93rem; font-weight: 600; outline: none; background: white; transition: border-color 0.2s; }
+.name-guess-input:focus { border-color: var(--pond-light); }
+
+/* bet zone */
+.bet-zone { display: none; flex-direction: column; gap: 9px; padding: 13px; background: #f5fbf5; border-radius: 14px; border: 2px dashed #c5ddc6; }
+.bet-zone.open { display: flex; }
+.bet-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bet-label { font-size: 0.86rem; color: var(--soft); flex-shrink: 0; font-weight: 700; }
+.bet-input { width: 86px; padding: 8px 12px; border: 1.5px solid #c5ddc6; border-radius: 10px; font-family: 'Nunito', sans-serif; font-size: 0.93rem; font-weight: 700; outline: none; background: white; transition: border-color 0.2s; }
+.bet-input:focus { border-color: var(--pond); }
+.quick-bets { display: flex; gap: 5px; }
+.quick-bet { padding: 5px 9px; border: 1.5px solid #c5ddc6; border-radius: 8px; background: white; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; transition: all 0.15s; color: var(--soft); }
+.quick-bet:hover { border-color: var(--pond); color: var(--pond); }
+.bet-confirm-row { display: flex; gap: 8px; align-items: center; }
+.bet-selected-opt { font-size: 0.83rem; color: var(--soft); flex: 1; }
+.bet-selected-opt strong { color: var(--dark); }
+.resolved-badge { display: inline-block; padding: 3px 12px; background: var(--grass-light); border-radius: 100px; font-size: 0.76rem; font-weight: 700; color: var(--dark); margin-top: 4px; }
+
+/* ====== LEADERBOARD ====== */
+.leaderboard { display: flex; flex-direction: column; gap: 9px; }
+.lb-row { display: flex; align-items: center; gap: 12px; background: var(--card-bg); padding: 12px 18px; border-radius: 16px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); transition: transform 0.2s; }
+.lb-row:hover { transform: translateX(4px); }
+.lb-row.me { border-color: var(--duckling); background: #fffdf0; }
+.lb-rank { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 700; width: 26px; text-align: center; color: var(--soft); }
+.lb-rank.top { color: var(--pond); }
+.lb-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--pond-pale); background: var(--pond-pale); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+.lb-name { flex: 1; font-weight: 700; font-size: 0.95rem; }
+.lb-you { font-size: 0.7rem; color: var(--duckling-dark); font-weight: 800; background: #fff3c0; padding: 2px 7px; border-radius: 100px; }
+.lb-coins { font-weight: 800; color: var(--dark); font-size: 0.9rem; }
+.lb-bets { font-size: 0.76rem; color: #aaa; font-weight: 600; }
+
+/* ====== WELL WISHES ====== */
+.wishes-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.wish-card { background: var(--card-bg); border-radius: 16px; padding: 14px 18px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); }
+.wish-author { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.wish-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--pond-pale); border: 1.5px solid var(--pond-pale); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+.wish-name { font-weight: 700; font-size: 0.88rem; color: var(--pond); }
+.wish-text { font-size: 0.9rem; color: var(--dark); line-height: 1.55; font-style: italic; }
+.wish-input-box { background: var(--card-bg); border-radius: 18px; padding: 16px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); margin-bottom: 16px; }
+.wish-textarea { width: 100%; padding: 11px 14px; border: 2px solid #e2edd3; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 0.93rem; resize: none; outline: none; background: white; transition: border-color 0.2s; }
+.wish-textarea:focus { border-color: var(--pond-light); }
+
+/* ====== ADMIN ====== */
+.resolve-card { background: var(--card-bg); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); margin-bottom: 14px; }
+.resolve-q { font-family: 'Lora', serif; font-size: 0.98rem; margin-bottom: 10px; }
+.resolve-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.resolve-opt-btn { padding: 6px 14px; border: 1.5px solid #c5ddc6; border-radius: 100px; background: white; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.84rem; font-weight: 700; transition: all 0.15s; color: var(--soft); }
+.resolve-opt-btn:hover { border-color: var(--grass); background: #f0f8ee; }
+.resolve-opt-btn.resolved-winner { background: var(--grass-light); border-color: var(--grass); color: var(--dark); }
+.name-award-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.name-award-input { flex: 1; min-width: 120px; padding: 8px 12px; border: 1.5px solid #c5ddc6; border-radius: 10px; font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 600; outline: none; }
+
+/* ====== TV MODE ====== */
+#tvScreen {
+  display: none;
+  background: linear-gradient(160deg, #1a3040 0%, #0d2030 40%, #1a3828 100%);
+  min-height: 100vh; max-width: none; padding: 40px 48px;
+  overflow-y: auto;
+}
+#tvScreen.active { display: block; }
+.tv-header { text-align: center; margin-bottom: 36px; }
+.tv-title { font-family: 'Lora', serif; font-size: clamp(2rem, 4vw, 3.2rem); color: #F5C842; font-style: italic; text-shadow: 0 4px 20px rgba(245,200,66,0.4); }
+.tv-duck { font-size: 3rem; animation: bobble 3s ease-in-out infinite; display: inline-block; }
+.tv-subtitle { color: rgba(255,255,255,0.55); font-size: 1rem; margin-top: 6px; font-weight: 600; letter-spacing: 0.04em; }
+.tv-countdown { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; }
+.tv-count-unit { display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.07); border-radius: 14px; padding: 12px 20px; border: 1px solid rgba(255,255,255,0.12); }
+.tv-count-num { font-family: 'Lora', serif; font-size: 2.2rem; font-weight: 700; color: #F5C842; line-height: 1; }
+.tv-count-lbl { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin-top: 2px; }
+.tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.tv-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 18px 20px; backdrop-filter: blur(8px); }
+.tv-card-q { font-family: 'Lora', serif; font-size: 1rem; color: white; margin-bottom: 12px; font-style: italic; }
+.tv-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+.tv-bar-label { color: rgba(255,255,255,0.75); font-size: 0.82rem; font-weight: 600; width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-bar-track { flex: 1; height: 22px; background: rgba(255,255,255,0.08); border-radius: 100px; overflow: hidden; }
+.tv-bar-fill { height: 100%; border-radius: 100px; transition: width 1s cubic-bezier(0.34,1.56,0.64,1); background: linear-gradient(90deg, #4A7C8E, #6FA3B5); }
+.tv-bar-fill.leading { background: linear-gradient(90deg, #F5C842, #e8b820); }
+.tv-bar-pct { color: rgba(255,255,255,0.6); font-size: 0.78rem; font-weight: 700; width: 34px; text-align: right; }
+.tv-lb-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 14px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.08); }
+.tv-lb-rank { font-family: 'Lora', serif; color: #F5C842; font-size: 1rem; width: 24px; }
+.tv-lb-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.15); flex-shrink: 0; border: 1.5px solid rgba(245,200,66,0.3); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+.tv-lb-name { flex: 1; color: white; font-weight: 700; font-size: 0.9rem; }
+.tv-lb-coins { color: #F5C842; font-weight: 800; font-size: 0.88rem; }
+.tv-exit-btn { position: fixed; top: 16px; right: 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); border-radius: 100px; padding: 7px 18px; font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; z-index: 100; }
+.tv-exit-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+.tv-section-label { color: rgba(255,255,255,0.4); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; margin-bottom: 10px; margin-top: 24px; }
+
+/* ====== RESULTS SCREEN ====== */
+#resultsScreen { display: none; min-height: 100vh; padding: 0; max-width: none; }
+#resultsScreen.active { display: block; }
+.results-bg { min-height: 100vh; background: linear-gradient(160deg, #1a3828 0%, #2C3E2D 50%, #1a3040 100%); padding: 40px 20px 80px; position: relative; overflow: hidden; }
+.results-header { text-align: center; margin-bottom: 40px; }
+.results-title { font-family: 'Lora', serif; font-size: clamp(2rem, 5vw, 3.5rem); color: var(--duckling); font-style: italic; text-shadow: 0 4px 24px rgba(245,200,66,0.5); }
+.results-subtitle { color: rgba(255,255,255,0.6); margin-top: 8px; font-size: 1rem; font-weight: 600; }
+.winner-podium { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; }
+.podium-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.podium-avatar-wrap { position: relative; }
+.podium-avatar { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 3px solid var(--duckling); background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 8px 24px rgba(245,200,66,0.3); }
+.podium-avatar.silver { border-color: #C0C0C0; box-shadow: 0 8px 24px rgba(192,192,192,0.3); }
+.podium-avatar.bronze { border-color: #CD7F32; box-shadow: 0 8px 24px rgba(205,127,50,0.3); }
+.podium-name { color: white; font-weight: 800; font-size: 0.88rem; text-align: center; max-width: 90px; word-break: break-word; }
+.podium-coins { color: var(--duckling); font-weight: 800; font-size: 0.82rem; }
+.podium-coins.silver { color: #C0C0C0; }
+.podium-coins.bronze { color: #CD7F32; }
+.podium-block { border-radius: 12px 12px 0 0; width: 80px; display: flex; align-items: center; justify-content: center; }
+.podium-block.gold { height: 80px; background: linear-gradient(180deg, rgba(245,200,66,0.3), rgba(245,200,66,0.1)); border: 1px solid rgba(245,200,66,0.3); }
+.podium-block.silver { height: 56px; background: rgba(192,192,192,0.15); border: 1px solid rgba(192,192,192,0.2); }
+.podium-block.bronze { height: 40px; background: rgba(205,127,50,0.15); border: 1px solid rgba(205,127,50,0.2); }
+.podium-medal { font-size: 1.6rem; }
+
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; max-width: 900px; margin: 0 auto 32px; }
+.result-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px 18px; }
+.result-card-q { font-family: 'Lora', serif; font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 8px; font-style: italic; }
+.result-winner-opt { color: var(--duckling); font-weight: 800; font-size: 1rem; margin-bottom: 6px; }
+.result-correct-bettors { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
+.results-back-btn { display: block; margin: 0 auto; }
+
+/* ====== CERTIFICATE ====== */
+.cert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
+.cert-overlay.open { display: flex; }
+.cert-box { background: var(--cream); border-radius: 24px; padding: 0; max-width: 560px; width: 90%; box-shadow: 0 24px 64px rgba(0,0,0,0.4); overflow: hidden; }
+.cert-inner { padding: 40px; text-align: center; background: linear-gradient(160deg, #FBF7EE, #EFF8F0); border: 4px solid var(--grass-light); border-radius: 20px; margin: 8px; position: relative; }
+.cert-inner::before { content: '🌿'; position: absolute; top: 12px; left: 16px; font-size: 1.5rem; opacity: 0.4; }
+.cert-inner::after { content: '🌿'; position: absolute; top: 12px; right: 16px; font-size: 1.5rem; opacity: 0.4; transform: scaleX(-1); }
+.cert-duck { font-size: 3.5rem; margin-bottom: 8px; display: block; }
+.cert-headline { font-family: 'Lora', serif; font-size: 0.75rem; color: var(--soft); text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+.cert-title { font-family: 'Lora', serif; font-size: 2rem; color: var(--pond); font-style: italic; margin: 8px 0; line-height: 1.2; }
+.cert-name { font-family: 'Lora', serif; font-size: 2.4rem; color: var(--dark); font-weight: 700; margin: 12px 0; }
+.cert-body { font-size: 0.9rem; color: var(--soft); line-height: 1.7; margin-bottom: 16px; }
+.cert-coins { display: inline-block; background: linear-gradient(135deg, var(--duckling), var(--duckling-dark)); color: var(--dark); padding: 7px 20px; border-radius: 100px; font-weight: 800; font-size: 0.95rem; margin-bottom: 16px; }
+.cert-sig { font-family: 'Lora', serif; font-style: italic; font-size: 1.2rem; color: var(--pond); margin-top: 12px; }
+.cert-footer-ducks { font-size: 1.4rem; letter-spacing: 6px; margin-top: 8px; opacity: 0.5; }
+.cert-actions { padding: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ====== CONFETTI ====== */
+.confetti-piece { position: fixed; width: 10px; height: 10px; top: -20px; border-radius: 2px; animation: confettiFall linear forwards; z-index: 900; pointer-events: none; }
+@keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+
+/* ====== TOAST ====== */
+.toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast { background: var(--dark); color: #fff; padding: 11px 24px; border-radius: 100px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 8px 24px rgba(44,62,45,0.3); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; }
+@keyframes toastIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+.empty-state { text-align: center; padding: 40px 0; color: #bbb; font-size: 0.93rem; }
+.admin-note { font-size: 0.8rem; color: #bbb; }
+.divider-duck { text-align: center; color: #bbb; font-size: 0.9rem; margin: 4px 0; letter-spacing: 4px; }
+
+/* ====== MOBILE NAV BAR ====== */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; border-top: 2px solid #e8f0e2;
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  z-index: 200;
+  box-shadow: 0 -4px 20px rgba(44,62,45,0.10);
+}
+.mobile-nav-inner { display: flex; justify-content: space-around; align-items: center; }
+.mobile-nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Nunito', sans-serif; font-size: 0.65rem; font-weight: 700;
+  color: #aaa; padding: 6px 12px; border-radius: 12px; transition: color 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-nav-btn .mnav-icon { font-size: 1.3rem; line-height: 1; }
+.mobile-nav-btn.active { color: var(--pond); }
+
+/* ====== GRAND MARKETS TITLE ====== */
+.markets-hero { text-align: center; padding: 4px 0 24px; }
+.markets-hero-duck { font-size: 2.8rem; display: block; animation: bobble 3s ease-in-out infinite; margin-bottom: 2px; }
+.markets-hero-title {
+  font-family: 'Lora', serif;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  color: var(--dark); line-height: 1.15; font-style: italic;
+}
+.markets-hero-title em { color: var(--pond); font-style: normal; }
+.markets-hero-sub { font-size: 0.86rem; color: var(--soft); margin-top: 5px; font-weight: 600; }
+.markets-hero-divider {
+  display: flex; align-items: center; gap: 10px; margin: 12px auto 0; max-width: 240px;
+}
+.markets-hero-divider::before, .markets-hero-divider::after {
+  content: ''; flex: 1; height: 1.5px;
+  background: linear-gradient(90deg, transparent, #c5ddc6, transparent);
+}
+.markets-hero-divider span { font-size: 1rem; opacity: 0.55; }
+
+@media(max-width:600px){
+  .mobile-nav { display: block; }
+  #app .nav-tabs { display: none; }
+  #app { padding-bottom: 90px; }
+
+  #welcome { padding-top: 20px; padding-bottom: 32px; gap: 14px; }
+  .welcome-duck { font-size: 54px; }
+  .ducks-row { font-size: 1.3rem; }
+  h1.title { font-size: clamp(1.75rem, 8vw, 2.6rem); }
+  .countdown-num { font-size: 1.55rem; }
+  .countdown-sep { font-size: 1.2rem; }
+
+  .nav { padding: 12px 0 14px; margin-bottom: 14px; }
+  .nav-brand { font-size: 0.98rem; }
+
+  .market-card { padding: 15px 13px; border-radius: 16px; }
+  .market-question { font-size: 0.96rem; }
+  .option-btn { padding: 10px 11px; font-size: 0.86rem; min-height: 44px; }
+  .option-voters { display: none; }
+
+  .bet-row { gap: 6px; }
+  .quick-bets { gap: 3px; }
+  .quick-bet { padding: 4px 7px; font-size: 0.74rem; }
+  .bet-input { width: 72px; }
+
+  .lb-bets { display: none; }
+
+  .results-grid { grid-template-columns: 1fr; padding: 0 4px; }
+  .tv-grid { grid-template-columns: 1fr; }
+
+  .cert-inner { padding: 24px 16px; }
+  .cert-name { font-size: 1.7rem; }
+  .cert-title { font-size: 1.4rem; }
+
+  .podium-avatar { width: 52px; height: 52px; font-size: 1.3rem; }
+  .podium-name { font-size: 0.76rem; max-width: 68px; }
+
+  .btn { min-height: 44px; }
+  .nav-tab { min-height: 36px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ===== WELCOME ===== -->
+<div class="screen active" id="welcome">
+  <div class="welcome-duck">🐥</div>
+  <span class="ducks-row">🦆 🦆 🦆 🦆 🦆</span>
+  <h1 class="title">Make Way for<br><em>Baby!</em></h1>
+
+  <div class="countdown-box" id="welcomeCountdown">
+    <div class="countdown-label">🗓️ Baby arrives in...</div>
+    <div class="countdown-units">
+      <div class="countdown-unit"><div class="countdown-num" id="cdDays">--</div><div class="countdown-unit-label">days</div></div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-unit"><div class="countdown-num" id="cdHours">--</div><div class="countdown-unit-label">hrs</div></div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-unit"><div class="countdown-num" id="cdMins">--</div><div class="countdown-unit-label">min</div></div>
+      <div class="countdown-sep">:</div>
+      <div class="countdown-unit"><div class="countdown-num" id="cdSecs">--</div><div class="countdown-unit-label">sec</div></div>
+    </div>
+  </div>
+
+  <p class="subtitle">Place your best predictions about the newest duckling. Everyone gets <strong>500 bread crumbs</strong> to wager!</p>
+  <div class="coins-badge">🍞 500 bread crumbs to start</div>
+  <div class="feather-divider">~ ~ ~ ~</div>
+
+  <div class="name-form">
+    <input type="text" id="nameInput" placeholder="Your name" maxlength="30" autocomplete="off" />
+
+    <div class="photo-upload-area" onclick="document.getElementById('photoFileInput').click()">
+      <img id="photoPreview" class="photo-preview" src="" alt="" style="display:none" />
+      <span id="photoUploadText">📸 Add your photo (optional)</span>
+    </div>
+    <input type="file" id="photoFileInput" accept="image/*" onchange="handlePhotoUpload(event)" />
+
+    <button class="btn btn-primary" onclick="joinGame()" style="width:100%">Join the pond →</button>
+  </div>
+  <div class="divider-duck">~ ~ ~</div>
+  <p class="admin-note">Hosting? <button class="btn btn-ghost" onclick="showAdminLogin()">Admin login</button> · <button class="btn btn-ghost" onclick="enterTVMode()">📺 TV Mode</button></p>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div class="screen" id="app">
+  <div class="nav">
+    <div class="nav-brand">🦆 Make Way for Baby!</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="wallet">🍞 <span id="walletDisplay">500</span></div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="tab-btn-markets" onclick="showTab('markets')">Markets</button>
+        <button class="nav-tab" id="tab-btn-leaderboard" onclick="showTab('leaderboard')">Board</button>
+        <button class="nav-tab" id="tab-btn-wishes" onclick="showTab('wishes')">Wishes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARKETS -->
+  <div id="tab-markets">
+    <div class="markets-hero">
+      <span class="markets-hero-duck">🐣</span>
+      <div class="markets-hero-title">Place Your<br><em>Predictions</em></div>
+      <div class="markets-hero-sub" id="greetingTitle">Welcome to the pond!</div>
+      <div class="markets-hero-divider"><span>🦆</span></div>
+    </div>
+    <div class="markets-grid" id="marketsGrid"></div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="tab-leaderboard" style="display:none">
+    <div class="section-title">🏆 Leaderboard</div>
+    <div class="leaderboard" id="leaderboardList"></div>
+  </div>
+
+  <!-- WELL WISHES -->
+  <div id="tab-wishes" style="display:none">
+    <div class="section-title">💌 Well Wishes</div>
+    <div class="wish-input-box">
+      <p style="font-size:0.88rem;color:var(--soft);margin-bottom:10px;font-weight:700">Leave a message for the family 🌿</p>
+      <textarea class="wish-textarea" id="wishText" rows="3" placeholder="Write your wishes, advice, or a funny prediction for the future..."></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-pond btn-sm" onclick="postWish()">Send 🌿</button>
+      </div>
+    </div>
+    <div class="wishes-list" id="wishesList"></div>
+  </div>
+</div>
+
+<!-- ===== ADMIN ===== -->
+<div class="screen" id="adminScreen">
+  <div class="nav">
+    <div class="nav-brand">🦆 Admin Panel</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="showResultsScreen()">🎉 Show Results</button>
+      <button class="btn btn-secondary btn-sm" onclick="goBack()">← Back</button>
+    </div>
+  </div>
+  <p style="margin-bottom:20px;color:var(--soft);font-size:0.93rem">Resolve markets when baby arrives. Winners split the bread crumbs!</p>
+  <div id="adminGrid"></div>
+</div>
+
+<!-- ===== TV MODE ===== -->
+<div class="screen" id="tvScreen">
+  <button class="tv-exit-btn" onclick="exitTVMode()">✕ Exit TV Mode</button>
+  <div class="tv-header">
+    <div class="tv-duck">🦆</div>
+    <div class="tv-title">Make Way for Baby!</div>
+    <div class="tv-subtitle">Live Predictions — May 16, 2026</div>
+  </div>
+  <div class="tv-countdown" id="tvCountdown"></div>
+  <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+    <div style="flex:2;min-width:280px">
+      <div class="tv-section-label">Live Prediction Odds</div>
+      <div class="tv-grid" id="tvGrid"></div>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <div class="tv-section-label">Leaderboard</div>
+      <div id="tvLeaderboard"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RESULTS ===== -->
+<div class="screen" id="resultsScreen">
+  <div class="results-bg">
+    <div class="results-header">
+      <div style="font-size:3rem;margin-bottom:8px">🐣🎉🦆</div>
+      <div class="results-title">Baby has arrived!</div>
+      <div class="results-subtitle">Here's how everyone did...</div>
+    </div>
+    <div class="winner-podium" id="winnerPodium"></div>
+    <div class="results-grid" id="resultsGrid"></div>
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn btn-duckling results-back-btn" onclick="showCertificate()">🏅 View Winner Certificate</button>
+      <br><br>
+      <button class="btn btn-ghost" style="color:rgba(255,255,255,0.5)" onclick="goBack()">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MOBILE BOTTOM NAV (only visible on small screens) ===== -->
+<div class="mobile-nav" id="mobileNav">
+  <div class="mobile-nav-inner">
+    <button class="mobile-nav-btn active" id="mnav-markets" onclick="showTab('markets');setMobileNav('markets')">
+      <span class="mnav-icon">🎯</span>Markets
+    </button>
+    <button class="mobile-nav-btn" id="mnav-leaderboard" onclick="showTab('leaderboard');setMobileNav('leaderboard')">
+      <span class="mnav-icon">🏆</span>Board
+    </button>
+    <button class="mobile-nav-btn" id="mnav-wishes" onclick="showTab('wishes');setMobileNav('wishes')">
+      <span class="mnav-icon">💌</span>Wishes
+    </button>
+  </div>
+</div>
+<div class="cert-overlay" id="certOverlay">
+  <div class="cert-box">
+    <div class="cert-inner" id="certInner">
+      <span class="cert-duck">🏆</span>
+      <div class="cert-headline">Official Certificate of Achievement</div>
+      <div class="cert-title">Baby Prophet</div>
+      <div class="cert-name" id="certName">—</div>
+      <div class="cert-body" id="certBody">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div>
+      <div class="cert-coins" id="certCoins">🍞 — bread crumbs</div>
+      <div style="font-size:1.2rem;margin:10px 0">🌿 🦆 🌿 🦆 🌿</div>
+      <div class="cert-sig">Make Way for Baby · May 16, 2026</div>
+      <div class="cert-footer-ducks">🐥 🐥 🐥 🐥 🐥</div>
+    </div>
+    <div class="cert-actions">
+      <button class="btn btn-primary" onclick="downloadCertificate()">⬇ Download Certificate</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('certOverlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ===================== MARKETS =====================
+const MARKETS = [
+  { id:'gender', question:'Boy or girl?', tag:'🍼 Gender', options:['Boy 💙','Girl 💗'] },
+  { id:'date', question:'Will baby arrive before, on, or after May 16th?', tag:'📅 Due Date', options:['Before May 16th','On May 16th','After May 16th'] },
+  { id:'eyes', question:"What color will baby's eyes be?", tag:'👁️ Eyes', options:['Blue','Brown','Green / Hazel','Grey'] },
+  { id:'hair', question:"What will baby's hair look like at birth?", tag:'💇 Hair', options:['Bald & smooth','Blonde / light','Brown','Dark black','Red / auburn'] },
+  { id:'weight', question:'What will the birth weight be?', tag:'⚖️ Weight', options:['Under 6 lbs','6–7 lbs','7–8 lbs','8–9 lbs','Over 9 lbs'] },
+  { id:'length', question:'How long will baby be?', tag:'📏 Length', options:['Under 18 inches','18–19 inches','19–20 inches','20–21 inches','Over 21 inches'] },
+  { id:'looks', question:'Who will baby look like?', tag:'👀 Looks Like', options:['Spitting image of mom','Spitting image of dad','A perfect mix of both','Winston Churchill'] },
+  { id:'babyname', question:"What will baby's name be?", tag:'✍️ Name Guess', options:[], isNameGuess:true }
+];
+
+const STARTING_COINS = 500;
+const ADMIN_PASS = 'baby2025';
+const COIN = '🍞';
+const DUE_DATE = new Date('2026-05-16T00:00:00');
+
+// ===================== STATE =====================
+let state = { players:{}, resolved:{}, wishes:[], currentPlayer:null };
+function loadState() { try { const s=localStorage.getItem('babyShowerp2'); if(s) state=JSON.parse(s); } catch(e){} }
+function saveState() { localStorage.setItem('babyShowerp2', JSON.stringify(state)); }
+
+// ===================== AUDIO =====================
+function playQuack() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+// ===================== COUNTDOWN =====================
+function updateCountdown() {
+  const now = new Date();
+  const diff = DUE_DATE - now;
+  if (diff <= 0) {
+    ['cdDays','cdHours','cdMins','cdSecs'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='0'; });
+    return;
+  }
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=String(v).padStart(2,'0'); };
+  set('cdDays',days); set('cdHours',hours); set('cdMins',mins); set('cdSecs',secs);
+  // TV mode countdown
+  const tvEl = document.getElementById('tvCountdown');
+  if (tvEl && document.getElementById('tvScreen').classList.contains('active')) {
+    tvEl.innerHTML = [['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([lbl,val])=>
+      `<div class="tv-count-unit"><div class="tv-count-num">${String(val).padStart(2,'0')}</div><div class="tv-count-lbl">${lbl}</div></div>`
+    ).join('');
+  }
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// ===================== PHOTO =====================
+let currentPhotoData = null;
+function handlePhotoUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentPhotoData = ev.target.result;
+    const prev = document.getElementById('photoPreview');
+    prev.src = currentPhotoData; prev.style.display = 'block';
+    document.getElementById('photoUploadText').textContent = 'Photo added ✓';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===================== AUTH =====================
+function joinGame() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { toast('Enter your name to join the pond!'); return; }
+  if (!state.players[name]) state.players[name] = { coins: STARTING_COINS, bets: {}, photo: null, nameGuess: '' };
+  if (currentPhotoData) state.players[name].photo = currentPhotoData;
+  state.currentPlayer = name;
+  saveState();
+  showApp();
+}
+
+function showAdminLogin() {
+  const pass = prompt('Admin password:');
+  if (pass === ADMIN_PASS) { showScreen('adminScreen'); renderAdmin(); }
+  else if (pass !== null) toast('Wrong password!');
+}
+function goBack() { showScreen('welcome'); }
+function enterTVMode() { showScreen('tvScreen'); renderTV(); }
+function exitTVMode() { showScreen('welcome'); }
+
+// ===================== NAV =====================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const mNav = document.getElementById('mobileNav');
+  if (mNav) mNav.style.display = (id === 'app') ? 'block' : 'none';
+}
+function showApp() {
+  showScreen('app');
+  document.getElementById('greetingTitle').textContent = `Welcome, ${state.currentPlayer}! 🌿`;
+  updateWallet();
+  renderMarkets();
+  setMobileNav('markets');
+}
+function showTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const btn = document.getElementById('tab-btn-'+tab);
+  if (btn) btn.classList.add('active');
+  ['markets','leaderboard','wishes'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
+  });
+  if (tab==='leaderboard') renderLeaderboard();
+  if (tab==='wishes') renderWishes();
+}
+function setMobileNav(tab) {
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('mnav-'+tab);
+  if (el) el.classList.add('active');
+  // Hide mobile nav when not in app screen
+  const mNav = document.getElementById('mobileNav');
+  if (mNav) mNav.style.display = document.getElementById('app').classList.contains('active') ? 'block' : 'none';
+}
+function updateWallet() {
+  const p = state.players[state.currentPlayer];
+  if (p) document.getElementById('walletDisplay').textContent = p.coins;
+}
+
+// ===================== MARKETS =====================
+let pendingOption = {};
+function escQ(s) { return s.replace(/'/g,"\\'"); }
+
+function renderMarkets() {
+  const grid = document.getElementById('marketsGrid');
+  const p = state.players[state.currentPlayer];
+
+  grid.innerHTML = MARKETS.map(m => {
+    const myBet = p.bets[m.id];
+    const resolved = state.resolved[m.id];
+
+    // Special: baby name guess
+    if (m.isNameGuess) {
+      const myGuess = p.nameGuess || '';
+      const isResolved = state.nameGuessWinner;
+      return `<div class="market-card">
+        <div class="market-header">
+          <div class="market-question">${m.question}</div>
+          <span class="market-tag">${m.tag}</span>
+        </div>
+        ${isResolved
+          ? `<p style="color:var(--duckling-dark);font-weight:700;">🎉 The name was: <strong>${state.nameGuessAnswer||'?'}</strong></p>
+             ${state.nameGuessWinner===state.currentPlayer ? '<p style="color:var(--grass);font-weight:700;margin-top:4px;">🏆 You guessed correctly!</p>' : ''}`
+          : `<div class="name-guess-zone">
+              <input class="name-guess-input" type="text" id="nameGuessInput" placeholder="Your guess for baby's name..." value="${myGuess}" maxlength="40" />
+              <button class="btn btn-duckling btn-sm" onclick="saveNameGuess()">Save ✓</button>
+            </div>
+            ${myGuess ? `<p style="font-size:0.82rem;color:var(--soft);margin-top:6px;">Your guess: <strong>${myGuess}</strong></p>` : ''}`
+        }
+      </div>`;
+    }
+
+    const totalByOpt = getTotals(m.id);
+    const totalAll = Object.values(totalByOpt).reduce((a,b)=>a+b,0);
+    const optionsHtml = m.options.map(opt => {
+      const pct = totalAll ? Math.round((totalByOpt[opt]||0)/totalAll*100) : Math.round(100/m.options.length);
+      const voters = getVoters(m.id, opt);
+      const isMyBet = myBet && myBet.option===opt;
+      const isWinner = resolved===opt;
+      let cls = 'option-btn'+(isMyBet?' my-bet':'');
+      return `<button class="${cls}" style="--pct:${pct}%" onclick="selectOption('${m.id}','${escQ(opt)}')" ${resolved?'disabled':''}>
+        <span class="option-label">${opt}${isMyBet?' '+COIN+myBet.amount:''}${isWinner?' ✓':''}</span>
+        <span class="option-voters">${voters} bet${voters!==1?'s':''}</span>
+        <span class="option-pct">${pct}%</span>
+      </button>`;
+    }).join('');
+    const resolvedBadge = resolved ? `<span class="resolved-badge">🐣 Resolved: ${resolved}</span>` : '';
+    const winMsg = resolved && myBet && myBet.option===resolved
+      ? `<p style="color:var(--duckling-dark);font-weight:800;margin-top:6px;">🎉 You called it!</p>` : '';
+
+    return `<div class="market-card">
+      <div class="market-header">
+        <div class="market-question">${m.question}</div>
+        <span class="market-tag">${m.tag}</span>
+      </div>
+      <div class="options-list">${optionsHtml}</div>
+      ${resolvedBadge}${winMsg}
+      <div class="bet-zone" id="bet-${m.id}">
+        <div class="bet-row">
+          <span class="bet-label">Betting on:</span>
+          <span class="bet-selected-opt" id="betLabel-${m.id}"><em>pick above</em></span>
+        </div>
+        <div class="bet-row">
+          <span class="bet-label">Amount:</span>
+          <input class="bet-input" type="number" min="1" max="${STARTING_COINS}" value="50" id="betAmt-${m.id}" />
+          <div class="quick-bets">
+            <button class="quick-bet" onclick="setAmt('${m.id}',25)">25</button>
+            <button class="quick-bet" onclick="setAmt('${m.id}',50)">50</button>
+            <button class="quick-bet" onclick="setAmt('${m.id}',100)">100</button>
+            <button class="quick-bet" onclick="setAmt('${m.id}',200)">200</button>
+          </div>
+        </div>
+        <div class="bet-confirm-row">
+          <button class="btn btn-duckling" onclick="placeBet('${m.id}')">Place Bet ${COIN}</button>
+          <button class="btn btn-ghost" onclick="closeBet('${m.id}')">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveNameGuess() {
+  const val = document.getElementById('nameGuessInput')?.value.trim();
+  if (!val) return;
+  state.players[state.currentPlayer].nameGuess = val;
+  saveState();
+  toast(`Name guess saved: "${val}" 🐥`);
+  renderMarkets();
+}
+
+function selectOption(marketId, option) {
+  if (state.resolved[marketId]) return;
+  const p = state.players[state.currentPlayer];
+  if (p.bets[marketId]) { toast("You've already placed a bet here!"); return; }
+  pendingOption[marketId] = option;
+  document.getElementById(`betLabel-${marketId}`).innerHTML = `<strong>${option}</strong>`;
+  document.getElementById(`bet-${marketId}`).classList.add('open');
+  document.getElementById(`bet-${marketId}`).scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function closeBet(mid) { document.getElementById(`bet-${mid}`).classList.remove('open'); delete pendingOption[mid]; }
+function setAmt(mid, amt) { document.getElementById(`betAmt-${mid}`).value = amt; }
+
+function placeBet(marketId) {
+  const p = state.players[state.currentPlayer];
+  const opt = pendingOption[marketId];
+  if (!opt) { toast('Pick an option first!'); return; }
+  const amt = parseInt(document.getElementById(`betAmt-${marketId}`).value);
+  if (!amt||amt<1) { toast('Enter a valid amount!'); return; }
+  if (amt>p.coins) { toast(`You only have ${COIN} ${p.coins}!`); return; }
+  p.coins -= amt;
+  p.bets[marketId] = { option:opt, amount:amt };
+  saveState(); updateWallet();
+  playQuack();
+  toast(`${COIN} ${amt} bread crumbs on "${opt}"!`);
+  closeBet(marketId);
+  renderMarkets();
+}
+
+function getTotals(mid) {
+  const t={};
+  Object.values(state.players).forEach(p=>{const b=p.bets[mid];if(b) t[b.option]=(t[b.option]||0)+b.amount;});
+  return t;
+}
+function getVoters(mid, opt) { return Object.values(state.players).filter(p=>p.bets[mid]?.option===opt).length; }
+
+// ===================== LEADERBOARD =====================
+function renderLeaderboard() {
+  const list = document.getElementById('leaderboardList');
+  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,bets:Object.keys(p.bets).length,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
+  if (!scores.length) { list.innerHTML='<div class="empty-state">No players yet!</div>'; return; }
+  const medals=['🥇','🥈','🥉'];
+  list.innerHTML = scores.map((s,i)=>{
+    const isMe = s.name===state.currentPlayer;
+    const avatarHtml = s.photo
+      ? `<img class="lb-avatar" src="${s.photo}" alt="${s.name}" />`
+      : `<div class="lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="lb-row ${isMe?'me':''}">
+      <div class="lb-rank ${i<3?'top':''}">${medals[i]||i+1}</div>
+      ${avatarHtml}
+      <div class="lb-name">${s.name} ${isMe?'<span class="lb-you">YOU</span>':''}</div>
+      <div class="lb-bets">${s.bets} bet${s.bets!==1?'s':''}</div>
+      <div class="lb-coins">${COIN} ${s.coins}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== WELL WISHES =====================
+function postWish() {
+  const text = document.getElementById('wishText').value.trim();
+  if (!text) { toast('Write something first!'); return; }
+  state.wishes = state.wishes || [];
+  state.wishes.unshift({ name: state.currentPlayer, text, photo: state.players[state.currentPlayer]?.photo||null, ts: Date.now() });
+  saveState();
+  document.getElementById('wishText').value = '';
+  toast('Wish sent! 🌿');
+  renderWishes();
+}
+
+function renderWishes() {
+  const list = document.getElementById('wishesList');
+  const wishes = state.wishes || [];
+  if (!wishes.length) { list.innerHTML='<div class="empty-state">Be the first to leave a wish! 🌿</div>'; return; }
+  list.innerHTML = wishes.map(w => {
+    const avatarHtml = w.photo
+      ? `<img class="wish-avatar" src="${w.photo}" alt="${w.name}" />`
+      : `<div class="wish-avatar">${w.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="wish-card">
+      <div class="wish-author">${avatarHtml}<span class="wish-name">${w.name}</span></div>
+      <div class="wish-text">"${w.text}"</div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== TV MODE =====================
+function renderTV() {
+  renderTVGrid();
+  renderTVLeaderboard();
+}
+
+function renderTVGrid() {
+  const grid = document.getElementById('tvGrid');
+  if (!grid) return;
+  grid.innerHTML = MARKETS.filter(m=>!m.isNameGuess).map(m => {
+    const totalByOpt = getTotals(m.id);
+    const totalAll = Object.values(totalByOpt).reduce((a,b)=>a+b,0);
+    const maxPct = totalAll ? Math.max(...m.options.map(o=>Math.round((totalByOpt[o]||0)/totalAll*100))) : 0;
+    const barsHtml = m.options.map(opt => {
+      const pct = totalAll ? Math.round((totalByOpt[opt]||0)/totalAll*100) : Math.round(100/m.options.length);
+      const isLeading = pct===maxPct && totalAll>0;
+      return `<div class="tv-bar-row">
+        <div class="tv-bar-label" title="${opt}">${opt}</div>
+        <div class="tv-bar-track"><div class="tv-bar-fill ${isLeading?'leading':''}" style="width:${pct}%"></div></div>
+        <div class="tv-bar-pct">${pct}%</div>
+      </div>`;
+    }).join('');
+    return `<div class="tv-card"><div class="tv-card-q">${m.question}</div>${barsHtml}</div>`;
+  }).join('');
+}
+
+function renderTVLeaderboard() {
+  const lb = document.getElementById('tvLeaderboard');
+  if (!lb) return;
+  const medals=['🥇','🥈','🥉'];
+  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,photo:p.photo})).sort((a,b)=>b.coins-a.coins).slice(0,8);
+  lb.innerHTML = scores.map((s,i)=>{
+    const avatarHtml = s.photo
+      ? `<img class="tv-lb-avatar" src="${s.photo}" alt="${s.name}" />`
+      : `<div class="tv-lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="tv-lb-row">
+      <div class="tv-lb-rank">${medals[i]||i+1}</div>
+      ${avatarHtml}
+      <div class="tv-lb-name">${s.name}</div>
+      <div class="tv-lb-coins">${COIN} ${s.coins}</div>
+    </div>`;
+  }).join('') || '<div style="color:rgba(255,255,255,0.4);font-size:0.88rem;">Waiting for players...</div>';
+}
+
+// Auto-refresh TV mode every 5s
+setInterval(()=>{
+  if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
+}, 5000);
+
+// ===================== ADMIN =====================
+function renderAdmin() {
+  const grid = document.getElementById('adminGrid');
+  grid.innerHTML = MARKETS.map(m => {
+    if (m.isNameGuess) {
+      const winner = state.nameGuessWinner;
+      const allGuesses = Object.entries(state.players).filter(([,p])=>p.nameGuess).map(([name,p])=>`${name}: "${p.nameGuess}"`).join('<br>');
+      return `<div class="resolve-card">
+        <div class="resolve-q">${m.question}</div>
+        <div style="font-size:0.83rem;color:var(--soft);margin-bottom:10px;line-height:1.8">${allGuesses||'No guesses yet'}</div>
+        <div class="name-award-row">
+          <input class="name-award-input" id="nameAnswerInput" placeholder="Actual baby name..." />
+          <input class="name-award-input" id="nameWinnerInput" placeholder="Winner's name..." />
+          <button class="btn btn-pond btn-sm" onclick="resolveNameGuess()">Award 🏆</button>
+        </div>
+        ${winner ? `<p style="font-size:0.83rem;color:var(--soft);margin-top:6px">✓ Winner: <strong>${winner}</strong> (name: ${state.nameGuessAnswer})</p>` : ''}
+      </div>`;
+    }
+    const resolved = state.resolved[m.id];
+    const optsHtml = m.options.map(opt=>{
+      const cls = resolved===opt?'resolve-opt-btn resolved-winner':'resolve-opt-btn';
+      return `<button class="${cls}" onclick="resolveMarket('${m.id}','${escQ(opt)}')">${opt}</button>`;
+    }).join('');
+    return `<div class="resolve-card">
+      <div class="resolve-q">${m.question}</div>
+      <div class="resolve-options">${optsHtml}</div>
+      ${resolved?`<p style="font-size:0.82rem;color:var(--soft);margin-top:5px">✓ Winner: <strong>${resolved}</strong></p>`:''}
+    </div>`;
+  }).join('');
+}
+
+function resolveNameGuess() {
+  const answer = document.getElementById('nameAnswerInput')?.value.trim();
+  const winner = document.getElementById('nameWinnerInput')?.value.trim();
+  if (!answer||!winner) { toast('Enter both the name and winner!'); return; }
+  state.nameGuessAnswer = answer;
+  state.nameGuessWinner = winner;
+  // Award 200 bonus coins to winner
+  if (state.players[winner]) { state.players[winner].coins += 200; toast(`🏆 ${winner} awarded 200 ${COIN} for guessing the name!`); }
+  saveState(); renderAdmin();
+}
+
+function resolveMarket(marketId, winner) {
+  if (state.resolved[marketId]) { if (!confirm('Re-resolve?')) return; undoPayouts(marketId); }
+  state.resolved[marketId] = winner;
+  payoutWinners(marketId, winner);
+  saveState(); toast(`🐣 Resolved: ${winner}`); renderAdmin();
+}
+
+function payoutWinners(marketId, winner) {
+  const totals = getTotals(marketId);
+  const totalPool = Object.values(totals).reduce((a,b)=>a+b,0);
+  const winnerPool = totals[winner]||0; if (!winnerPool) return;
+  Object.values(state.players).forEach(p=>{
+    const b=p.bets[marketId];
+    if(b&&b.option===winner){
+      const payout=Math.round(totalPool*(b.amount/winnerPool));
+      p.coins+=payout; p._payouts=p._payouts||{}; p._payouts[marketId]=payout;
+    }
+  });
+}
+function undoPayouts(marketId) {
+  Object.values(state.players).forEach(p=>{
+    if(p._payouts?.[marketId]){p.coins-=p._payouts[marketId];delete p._payouts[marketId];}
+  });
+}
+
+// ===================== RESULTS =====================
+function showResultsScreen() {
+  showScreen('resultsScreen');
+  renderResultsPodium();
+  renderResultsGrid();
+  setTimeout(launchConfetti, 400);
+}
+
+function renderResultsPodium() {
+  const podium = document.getElementById('winnerPodium');
+  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
+  const order = [scores[1], scores[0], scores[2]].filter(Boolean);
+  const configs = [
+    {cls:'silver', blockCls:'silver', medalCls:'silver', block:'podium-block silver', medal:'🥈'},
+    {cls:'', blockCls:'gold', medalCls:'', block:'podium-block gold', medal:'🥇'},
+    {cls:'bronze', blockCls:'bronze', medalCls:'bronze', block:'podium-block bronze', medal:'🥉'}
+  ];
+  podium.innerHTML = order.map((s,i)=>{
+    if (!s) return '<div></div>';
+    const c = configs[i];
+    const avHtml = s.photo
+      ? `<img class="podium-avatar ${c.cls}" src="${s.photo}" alt="${s.name}" />`
+      : `<div class="podium-avatar ${c.cls}">${s.name.charAt(0).toUpperCase()}</div>`;
+    return `<div class="podium-slot">
+      <div class="podium-avatar-wrap">${avHtml}</div>
+      <div class="podium-name">${s.name}</div>
+      <div class="podium-coins ${c.medalCls}">${COIN} ${s.coins}</div>
+      <div class="${c.block}"><span class="podium-medal">${c.medal}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderResultsGrid() {
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = MARKETS.filter(m=>!m.isNameGuess).map(m=>{
+    const resolved = state.resolved[m.id];
+    if (!resolved) return '';
+    const winners = Object.entries(state.players).filter(([,p])=>p.bets[m.id]?.option===resolved).map(([name])=>name);
+    return `<div class="result-card">
+      <div class="result-card-q">${m.question}</div>
+      <div class="result-winner-opt">✓ ${resolved}</div>
+      <div class="result-correct-bettors">${winners.length ? '🎉 '+winners.join(', ') : 'Nobody called it!'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== CERTIFICATE =====================
+function showCertificate() {
+  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins})).sort((a,b)=>b.coins-a.coins);
+  if (!scores.length) return;
+  const winner = scores[0];
+  document.getElementById('certName').textContent = winner.name;
+  document.getElementById('certCoins').textContent = `${COIN} ${winner.coins} bread crumbs`;
+  document.getElementById('certOverlay').classList.add('open');
+}
+
+function downloadCertificate() {
+  const scores = Object.entries(state.players).map(([name,p])=>({name,coins:p.coins})).sort((a,b)=>b.coins-a.coins);
+  if (!scores.length) return;
+  const w = scores[0];
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>body{margin:0;background:#FBF7EE;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;}
+  .cert{max-width:600px;width:90%;padding:48px;text-align:center;border:6px solid #A8CC88;border-radius:24px;background:linear-gradient(160deg,#FBF7EE,#EFF8F0);position:relative;}
+  h1{font-family:'Lora',serif;font-size:2.8rem;color:#4A7C8E;font-style:italic;margin:12px 0;}
+  .name{font-family:'Lora',serif;font-size:3rem;font-weight:700;color:#2C3E2D;margin:16px 0;}
+  .sub{font-size:0.8rem;color:#4A5E3A;text-transform:uppercase;letter-spacing:.2em;font-weight:700;}
+  .body{font-size:1rem;color:#4A5E3A;line-height:1.8;margin:16px 0;}
+  .badge{display:inline-block;background:linear-gradient(135deg,#F5C842,#C99A10);color:#2C3E2D;padding:8px 24px;border-radius:100px;font-weight:800;margin:12px 0;}
+  .sig{font-family:'Lora',serif;font-style:italic;font-size:1.3rem;color:#4A7C8E;margin-top:16px;}
+  </style></head><body>
+  <div class="cert">
+    <div style="font-size:4rem">🏆</div>
+    <div class="sub">Official Certificate of Achievement</div>
+    <h1>Baby Prophet</h1>
+    <div class="name">${w.name}</div>
+    <div class="body">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div>
+    <div class="badge">🍞 ${w.coins} bread crumbs</div>
+    <div style="font-size:1.4rem;margin:12px 0">🌿 🦆 🌿 🦆 🌿</div>
+    <div class="sig">Make Way for Baby · May 16, 2026</div>
+    <div style="font-size:1.8rem;letter-spacing:8px;margin-top:12px;opacity:.5">🐥 🐥 🐥 🐥 🐥</div>
+  </div></body></html>`;
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `baby-prophet-certificate-${w.name.replace(/\s+/g,'-')}.html`;
+  a.click();
+  toast('Certificate downloaded! 🏅');
+}
+
+// ===================== CONFETTI =====================
+function launchConfetti() {
+  const colors = ['#F5C842','#4A7C8E','#A8CC88','#E8756A','#C5A8C0','#6FA3B5'];
+  for (let i=0;i<120;i++) {
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `
+        left:${Math.random()*100}vw;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        width:${6+Math.random()*10}px;
+        height:${6+Math.random()*10}px;
+        border-radius:${Math.random()>0.5?'50%':'2px'};
+        animation-duration:${2+Math.random()*3}s;
+        animation-delay:${Math.random()*1.5}s;
+        transform:rotate(${Math.random()*360}deg);
+      `;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 5000);
+    }, i*20);
+  }
+}
+
+// ===================== TOAST =====================
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+// ===================== INIT =====================
+loadState();
+</script>
+</body>
+</html>
