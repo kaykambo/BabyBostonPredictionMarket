@@ -272,14 +272,53 @@ h1.title em { color: var(--pond); font-style: italic; }
 .confetti-piece { position: fixed; width: 10px; height: 10px; top: -20px; border-radius: 2px; animation: confettiFall linear forwards; z-index: 900; pointer-events: none; }
 @keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 
-/* ====== CRAWLING BABY ====== */
-.crawling-baby {
+/* ====== CRAWLING BABIES ====== */
+.baby-crawler {
   position: fixed;
-  font-size: 2.6rem;
   z-index: 950;
   pointer-events: none;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  left: var(--sx);
+  top: var(--sy);
+  transform: scaleX(var(--flip, 1));
+  animation: babyCross var(--dur, 5s) ease-in-out forwards;
+}
+@keyframes babyCross {
+  0%   { left: var(--sx); top: var(--sy); }
+  100% { left: var(--ex); top: var(--ey); }
+}
+.baby-body {
+  font-size: 2.4rem;
+  line-height: 1;
   animation: babyWobble 0.35s ease-in-out infinite alternate;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));
+}
+.baby-head-img {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  margin-bottom: -6px;
+  animation: babyHeadBob 0.35s ease-in-out infinite alternate;
+  flex-shrink: 0;
+}
+.baby-name-tag {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 100px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--dark);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  white-space: nowrap;
+  font-family: 'Nunito', sans-serif;
 }
 @keyframes babyWobble {
   from { transform: rotate(-8deg) scaleY(1); }
@@ -288,21 +327,6 @@ h1.title em { color: var(--pond); font-style: italic; }
 @keyframes babyHeadBob {
   from { transform: translateY(0px) rotate(-5deg); }
   to   { transform: translateY(-3px) rotate(5deg); }
-}
-.baby-name-tag {
-  position: fixed;
-  z-index: 951;
-  pointer-events: none;
-  background: white;
-  border-radius: 100px;
-  padding: 3px 10px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--dark);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-  white-space: nowrap;
-  font-family: 'Nunito', sans-serif;
-  opacity: 1;
 }
 
 /* ====== TOAST ====== */
@@ -616,154 +640,117 @@ let currentPlayer = null;
 let photoData = null; // local only — photos stored as base64 in Firebase player record
 
 // ===================== CRAWLING BABIES =====================
+// Simple approach: each baby is a fixed div animated with CSS keyframes.
+// No requestAnimationFrame, no closures, no state to manage mid-animation.
+// When a crossing ends (animationiteration), we randomize the next path via CSS vars.
+
 const BABY_EMOJIS = ['👶','👶🏻','👶🏼','👶🏽','👶🏾','👶🏿'];
-const activeBabies = {}; // playerName -> { wrapper, tag, animFrameId, running }
+const babyEls = {}; // playerName -> wrapper div
 
-function getPlayerCrawlData(playerName) {
+function spawnBaby(playerName) {
+  if (babyEls[playerName]) return;
+
   const photo = state.players[playerName]?.photo || null;
-  return { photo };
-}
 
-function createBabyElements(playerName) {
-  const { photo } = getPlayerCrawlData(playerName);
-
+  // Outer wrapper — positioned by CSS animation
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = `position:fixed;z-index:950;pointer-events:none;display:flex;flex-direction:column;align-items:center;`;
+  wrapper.className = 'baby-crawler';
+  wrapper.dataset.player = playerName;
 
   if (photo) {
     const head = document.createElement('img');
     head.src = photo;
-    head.style.cssText = `width:38px;height:38px;border-radius:50%;object-fit:cover;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:block;margin-bottom:-6px;animation:babyHeadBob 0.35s ease-in-out infinite alternate;flex-shrink:0;`;
+    head.className = 'baby-head-img';
     wrapper.appendChild(head);
   }
 
   const body = document.createElement('div');
-  body.style.cssText = `font-size:${photo?'2rem':'2.6rem'};line-height:1;animation:babyWobble 0.35s ease-in-out infinite alternate;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.15));`;
-  body.textContent = photo ? '🍼' : BABY_EMOJIS[Math.floor(Math.random()*BABY_EMOJIS.length)];
+  body.className = 'baby-body';
+  body.textContent = photo ? '🍼' : BABY_EMOJIS[Math.floor(Math.random() * BABY_EMOJIS.length)];
   wrapper.appendChild(body);
 
   const tag = document.createElement('div');
   tag.className = 'baby-name-tag';
-  tag.textContent = `${playerName}`;
-  tag.style.opacity = '1';
+  tag.textContent = playerName;
+  wrapper.appendChild(tag);
+
+  // Pick a random starting path and set CSS custom properties
+  setBabyPath(wrapper);
+
+  // Each time the crossing animation finishes, pick a new random path
+  wrapper.addEventListener('animationend', () => {
+    if (!babyEls[playerName]) return; // was removed
+    setBabyPath(wrapper);
+    // Force reflow to restart animation
+    wrapper.style.animation = 'none';
+    void wrapper.offsetWidth;
+    wrapper.style.animation = '';
+  });
 
   document.body.appendChild(wrapper);
-  document.body.appendChild(tag);
-  return { wrapper, tag };
+  babyEls[playerName] = wrapper;
 }
 
-function pickNewPath() {
-  const directions = ['left-to-right','right-to-left','top-to-bottom','bottom-to-top'];
-  const dir = directions[Math.floor(Math.random()*directions.length)];
+function setBabyPath(wrapper) {
+  const dirs = ['ltr','rtl','ttb','btt'];
+  const dir = dirs[Math.floor(Math.random() * dirs.length)];
   const vw = window.innerWidth, vh = window.innerHeight;
-  const duration = 4000 + Math.random()*4000; // 4–8s per crossing
-  let startX, startY, endX, endY, flipX=1, flipY=1;
   const r = () => Math.random();
-  if (dir==='left-to-right') {
-    startX=-100; endX=vw+100; startY=r()*(vh-140)+60; endY=r()*(vh-140)+60;
-  } else if (dir==='right-to-left') {
-    startX=vw+100; endX=-100; flipX=-1; startY=r()*(vh-140)+60; endY=r()*(vh-140)+60;
-  } else if (dir==='top-to-bottom') {
-    startY=-100; endY=vh+100; startX=r()*(vw-140)+60; endX=r()*(vw-140)+60;
+  const dur = (4 + r() * 4).toFixed(1); // 4–8s
+
+  wrapper.dataset.dir = dir;
+  wrapper.style.setProperty('--dur', dur + 's');
+
+  if (dir === 'ltr') {
+    const y = Math.floor(r() * (vh - 120) + 50);
+    wrapper.style.setProperty('--sx', '-120px');
+    wrapper.style.setProperty('--sy', y + 'px');
+    wrapper.style.setProperty('--ex', (vw + 120) + 'px');
+    wrapper.style.setProperty('--ey', y + 'px');
+    wrapper.style.setProperty('--flip', '1');
+  } else if (dir === 'rtl') {
+    const y = Math.floor(r() * (vh - 120) + 50);
+    wrapper.style.setProperty('--sx', (vw + 120) + 'px');
+    wrapper.style.setProperty('--sy', y + 'px');
+    wrapper.style.setProperty('--ex', '-120px');
+    wrapper.style.setProperty('--ey', y + 'px');
+    wrapper.style.setProperty('--flip', '-1');
+  } else if (dir === 'ttb') {
+    const x = Math.floor(r() * (vw - 100) + 50);
+    wrapper.style.setProperty('--sx', x + 'px');
+    wrapper.style.setProperty('--sy', '-120px');
+    wrapper.style.setProperty('--ex', x + 'px');
+    wrapper.style.setProperty('--ey', (vh + 120) + 'px');
+    wrapper.style.setProperty('--flip', '1');
   } else {
-    startY=vh+100; endY=-100; flipY=-1; startX=r()*(vw-140)+60; endX=r()*(vw-140)+60;
+    const x = Math.floor(r() * (vw - 100) + 50);
+    wrapper.style.setProperty('--sx', x + 'px');
+    wrapper.style.setProperty('--sy', (vh + 120) + 'px');
+    wrapper.style.setProperty('--ex', x + 'px');
+    wrapper.style.setProperty('--ey', '-120px');
+    wrapper.style.setProperty('--flip', '1');
   }
-  return { startX, startY, endX, endY, flipX, flipY, duration };
 }
 
-function animateBaby(playerName) {
-  const entry = activeBabies[playerName];
-  if (!entry || !entry.running) return;
-
-  // Refresh photo in case it was uploaded after initial join
-  const newPhoto = state.players[playerName]?.photo || null;
-  const headEl = entry.wrapper.querySelector('img');
-  if (newPhoto && !headEl) {
-    // Photo added after creation — rebuild elements and update entry in place
-    entry.wrapper.remove(); entry.tag.remove();
-    const rebuilt = createBabyElements(playerName);
-    entry.wrapper = rebuilt.wrapper; entry.tag = rebuilt.tag;
-  } else if (newPhoto && headEl && headEl.getAttribute('data-src') !== playerName) {
-    headEl.src = newPhoto;
-    headEl.setAttribute('data-src', playerName);
-  }
-
-  const path = pickNewPath();
-  const { startX, startY, endX, endY, flipX, flipY, duration } = path;
-  entry.wrapper.style.transform = `scaleX(${flipX}) scaleY(${flipY})`;
-  entry.wrapper.style.left = startX+'px';
-  entry.wrapper.style.top  = startY+'px';
-
-  const startTime = performance.now();
-  function frame(now) {
-    // Always re-read from activeBabies so rebuilds are picked up
-    const e = activeBabies[playerName];
-    if (!e || !e.running) return;
-    const t = Math.min((now - startTime) / duration, 1);
-    const ease = t<0.5 ? 2*t*t : -1+(4-2*t)*t;
-    const x = startX + (endX-startX)*ease;
-    const y = startY + (endY-startY)*ease + Math.sin(t*Math.PI*5)*20;
-    e.wrapper.style.left = x+'px';
-    e.wrapper.style.top  = y+'px';
-    e.tag.style.left = (x-10)+'px';
-    e.tag.style.top  = (y-28)+'px';
-    if (t < 1) {
-      e.animFrameId = requestAnimationFrame(frame);
-    } else {
-      setTimeout(() => { if (activeBabies[playerName]?.running) animateBaby(playerName); }, 300 + Math.random()*700);
-    }
-  }
-  entry.animFrameId = requestAnimationFrame(frame);
-}
-
-function addBaby(playerName) {
-  if (activeBabies[playerName]) return; // already exists
-  const { wrapper, tag } = createBabyElements(playerName);
-  activeBabies[playerName] = { wrapper, tag, animFrameId: null, running: true };
-  animateBaby(playerName);
-}
-
-function removeBaby(playerName) {
-  const entry = activeBabies[playerName];
-  if (!entry) return;
-  entry.running = false;
-  if (entry.animFrameId) cancelAnimationFrame(entry.animFrameId);
-  entry.wrapper.remove();
-  entry.tag.remove();
-  delete activeBabies[playerName];
+function removeBabyEl(playerName) {
+  const el = babyEls[playerName];
+  if (el) { el.remove(); delete babyEls[playerName]; }
 }
 
 function syncBabies() {
-  // Only run babies when the main app screen is visible
   if (!document.getElementById('app').classList.contains('active')) return;
-
-  const currentNames = new Set(Object.keys(state.players));
-  // Add babies for new players
-  currentNames.forEach(name => { if (!activeBabies[name]) addBaby(name); });
-  // Remove babies for players no longer in state
-  Object.keys(activeBabies).forEach(name => { if (!currentNames.has(name)) removeBaby(name); });
+  const names = new Set(Object.keys(state.players));
+  names.forEach(name => spawnBaby(name));
+  Object.keys(babyEls).forEach(name => { if (!names.has(name)) removeBabyEl(name); });
 }
 
 function pauseAllBabies() {
-  Object.keys(activeBabies).forEach(name => {
-    const entry = activeBabies[name];
-    entry.running = false;
-    if (entry.animFrameId) { cancelAnimationFrame(entry.animFrameId); entry.animFrameId = null; }
-    entry.wrapper.style.visibility = 'hidden';
-    entry.tag.style.visibility = 'hidden';
-  });
+  Object.values(babyEls).forEach(el => el.style.animationPlayState = 'paused');
 }
 
 function resumeAllBabies() {
-  Object.keys(activeBabies).forEach(name => {
-    const entry = activeBabies[name];
-    entry.wrapper.style.visibility = 'visible';
-    entry.tag.style.visibility = 'visible';
-    entry.running = true;
-    animateBaby(name);
-  });
-  // Also add any players who joined while we were away
-  syncBabies();
+  Object.values(babyEls).forEach(el => el.style.animationPlayState = 'running');
+  syncBabies(); // add any new players
 }
 
 // ===================== FIREBASE REAL-TIME LISTENER =====================
