@@ -484,6 +484,7 @@ h1.title em { color: var(--pond); font-style: italic; }
         <button class="nav-tab active" id="tab-btn-markets" onclick="showTab('markets')">Markets</button>
         <button class="nav-tab" id="tab-btn-leaderboard" onclick="showTab('leaderboard')">Board</button>
         <button class="nav-tab" id="tab-btn-wishes" onclick="showTab('wishes')">Wishes</button>
+        <button class="nav-tab" onclick="enterTVMode()">📺</button>
       </div>
     </div>
   </div>
@@ -709,7 +710,11 @@ function setBabyPath(wrapper) {
   const dir = dirs[Math.floor(Math.random() * dirs.length)];
   const vw = window.innerWidth, vh = window.innerHeight;
   const r = () => Math.random();
-  const dur = (4 + r() * 4).toFixed(1); // 4–8s
+  // Scale duration by screen width: mobile (~400px) gets 5–9s, desktop (~1400px) gets 20–36s
+  const isMobile = vw < 600;
+  const baseDur = isMobile ? 6 : 24;
+  const rangeDur = isMobile ? 4 : 14;
+  const dur = (baseDur + r() * rangeDur).toFixed(1);
 
   wrapper.dataset.dir = dir;
   wrapper.style.setProperty('--dur', dur + 's');
@@ -751,7 +756,9 @@ function removeBabyEl(playerName) {
 }
 
 function syncBabies() {
-  if (!document.getElementById('app').classList.contains('active')) return;
+  const appActive = document.getElementById('app').classList.contains('active');
+  const tvActive = document.getElementById('tvScreen').classList.contains('active');
+  if (!appActive && !tvActive) return;
   const names = new Set(Object.keys(state.players));
   names.forEach(name => spawnBaby(name));
   Object.keys(babyEls).forEach(name => { if (!names.has(name)) removeBabyEl(name); });
@@ -886,31 +893,30 @@ function showAdminLogin() {
   else if(pass!==null) toast('Wrong password!');
 }
 function goBack(){
-  // If we have a current player, go back to app, otherwise welcome
-  if(currentPlayer) showApp();
-  else showScreen('welcome');
-}
-function enterTVMode(){showScreen('tvScreen');renderTV();}
-function exitTVMode(){
   if(currentPlayer) showApp();
   else showScreen('welcome');
 }
 
 // ===================== NAV =====================
 function showScreen(id) {
-  const wasApp = document.getElementById('app').classList.contains('active');
+  const wasAppOrTV = document.getElementById('app').classList.contains('active') || document.getElementById('tvScreen').classList.contains('active');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const mNav=document.getElementById('mobileNav');
   if(mNav) mNav.style.display=(id==='app')?'block':'none';
-  if (wasApp && id !== 'app') pauseAllBabies();
+  const isAppOrTV = id === 'app' || id === 'tvScreen';
+  if (wasAppOrTV && !isAppOrTV) pauseAllBabies();
 }
 function showApp() {
   showScreen('app');
   document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
   updateWallet(); renderMarkets(); setMobileNav('markets');
-  // Start or resume the baby parade
   resumeAllBabies();
+}
+function enterTVMode(){ showScreen('tvScreen'); renderTV(); resumeAllBabies(); }
+function exitTVMode(){
+  if(currentPlayer) showApp();
+  else showScreen('welcome');
 }
 function showTab(tab) {
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
