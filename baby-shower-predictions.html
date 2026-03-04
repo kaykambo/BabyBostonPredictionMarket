@@ -99,10 +99,10 @@ h1.title em { color: var(--pond); font-style: italic; }
 .btn-primary { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); }
 .btn-primary:hover { box-shadow: 0 10px 28px rgba(74,124,142,0.45); }
 .btn-secondary { background: white; color: var(--soft); box-shadow: var(--shadow); border: 1.5px solid #dde8d0; }
-.btn-ghost { background: transparent; color: var(--soft); padding: 8px 16px; font-size: 0.88rem; }
+.btn-ghost { background: transparent; color: var(--soft); padding: 8px 16px; font-size: 0.88rem; box-shadow: none; }
 .btn-duckling { background: linear-gradient(135deg, var(--duckling), #e8b820); color: var(--dark); box-shadow: 0 6px 20px rgba(245,200,66,0.4); }
 .btn-duckling:hover { box-shadow: 0 10px 28px rgba(245,200,66,0.5); }
-.btn-pond { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); }
+.btn-pond { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); } /* alias for btn-primary */
 .btn-sm { padding: 8px 16px; font-size: 0.85rem; border-radius: 10px; }
 
 /* ====== NAV ====== */
@@ -116,14 +116,14 @@ h1.title em { color: var(--pond); font-style: italic; }
 /* ====== MARKET CARDS ====== */
 .section-title { font-family: 'Lora', serif; font-size: 1.4rem; margin-bottom: 18px; color: var(--dark); }
 .markets-grid { display: flex; flex-direction: column; gap: 16px; }
-.market-card { background: var(--card-bg); backdrop-filter: blur(10px); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+.market-card { background: var(--card-bg); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); border: 1.5px solid rgba(197,221,198,0.6); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
 .market-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--pond-light), var(--grass-light)); border-radius: 4px 0 0 4px; }
 .market-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .market-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .market-question { font-family: 'Lora', serif; font-size: 1.05rem; line-height: 1.45; flex: 1; color: var(--dark); }
 .market-tag { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 100px; background: var(--pond-pale); color: var(--pond); white-space: nowrap; }
 .options-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
-.option-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: white; border: 2px solid #e2edd3; border-radius: 12px; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--dark); transition: all 0.18s; text-align: left; position: relative; overflow: hidden; }
+.option-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: white; border: 2px solid #e2edd3; border-radius: 12px; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--dark); transition: border-color 0.18s, background 0.18s, box-shadow 0.18s; text-align: left; position: relative; overflow: hidden; }
 .option-btn::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--pct, 0%); background: linear-gradient(90deg, rgba(214,234,240,0.7), rgba(214,234,240,0.3)); border-radius: 10px 0 0 10px; transition: width 0.5s ease; z-index: 0; }
 .option-btn > * { position: relative; z-index: 1; }
 .option-btn:hover { border-color: var(--pond-light); background: #f5fbfd; }
@@ -282,8 +282,8 @@ h1.title em { color: var(--pond); font-style: italic; }
 .cert-actions { padding: 16px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
 /* ====== CONFETTI ====== */
-.confetti-piece { position: fixed; width: 10px; height: 10px; top: -20px; border-radius: 2px; animation: confettiFall linear forwards; z-index: 900; pointer-events: none; }
-@keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+.confetti-piece { position: fixed; width: 10px; height: 10px; top: -20px; left: 50%; border-radius: 2px; animation: confettiFall linear forwards; z-index: 900; pointer-events: none; will-change: transform; }
+@keyframes confettiFall { from { transform: translateY(0) rotate(0deg); opacity: 1; } to { transform: translateX(var(--cx)) translateY(110vh) rotate(720deg); opacity: 0; } }
 
 /* ====== CRAWLING BABIES ====== */
 .baby-crawler {
@@ -293,20 +293,22 @@ h1.title em { color: var(--pond); font-style: italic; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  left: var(--sx);
-  top: var(--sy);
-  transform: scaleX(var(--flip, 1));
+  /* Pinned at origin — motion via transform only (GPU composited, zero layout cost) */
+  left: 0;
+  top: 0;
+  will-change: transform;
+  contain: layout style;
+  transform: translate(var(--sx), var(--sy)) scaleX(var(--flip, 1));
   animation: babyCross var(--dur, 5s) ease-in-out forwards;
 }
 @keyframes babyCross {
-  0%   { left: var(--sx); top: var(--sy); }
-  100% { left: var(--ex); top: var(--ey); }
+  0%   { transform: translate(var(--sx), var(--sy)) scaleX(var(--flip)); }
+  100% { transform: translate(var(--ex), var(--ey)) scaleX(var(--flip)); }
 }
 .baby-body {
   font-size: 2.4rem;
   line-height: 1;
   animation: babyWobble 0.35s ease-in-out infinite alternate;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));
 }
 .baby-head-img {
   width: 36px; height: 36px;
@@ -539,7 +541,7 @@ h1.title em { color: var(--pond); font-style: italic; }
   <div class="tv-header">
     <div class="tv-duck">🦆</div>
     <div class="tv-title">Make Way for Baby!</div>
-    <div class="tv-subtitle">Live Predictions — May 16, 2026</div>
+    <div class="tv-subtitle" id="tvSubtitle">Live Predictions</div>
   </div>
   <div class="tv-countdown" id="tvCountdown"></div>
   <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
@@ -596,7 +598,7 @@ h1.title em { color: var(--pond); font-style: italic; }
       <div class="cert-body" id="certBody">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div>
       <div class="cert-coins" id="certCoins">🍞 — bread crumbs</div>
       <div style="font-size:1.2rem;margin:10px 0">🌿 🦆 🌿 🦆 🌿</div>
-      <div class="cert-sig">Make Way for Baby · May 16, 2026</div>
+      <div class="cert-sig" id="certSig">Make Way for Baby · May 16, 2026</div>
       <div class="cert-footer-ducks">🐥 🐥 🐥 🐥 🐥</div>
     </div>
     <div class="cert-actions">
@@ -613,7 +615,7 @@ h1.title em { color: var(--pond); font-style: italic; }
 // ===================== FIREBASE CONFIG =====================
 // PASTE YOUR FIREBASE CONFIG HERE 👇
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, update, onValue, push, serverTimestamp }
+import { getDatabase, ref, set, get, update, onValue, push }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -695,10 +697,11 @@ function spawnBaby(playerName) {
   wrapper.addEventListener('animationend', () => {
     if (!babyEls[playerName]) return; // was removed
     setBabyPath(wrapper);
-    // Force reflow to restart animation
-    wrapper.style.animation = 'none';
-    void wrapper.offsetWidth;
-    wrapper.style.animation = '';
+    // Restart by toggling the animation name — cleaner than the style/reflow hack
+    wrapper.style.animationName = 'none';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { wrapper.style.animationName = ''; });
+    });
   });
 
   document.body.appendChild(wrapper);
@@ -710,7 +713,7 @@ function setBabyPath(wrapper) {
   const dir = dirs[Math.floor(Math.random() * dirs.length)];
   const vw = window.innerWidth, vh = window.innerHeight;
   const r = () => Math.random();
-  // Scale duration by screen width: mobile (~400px) gets 5–9s, desktop (~1400px) gets 20–36s
+  // Scale duration by screen width: mobile (~400px) gets 6–10s, desktop gets 24–38s
   const isMobile = vw < 600;
   const baseDur = isMobile ? 6 : 24;
   const rangeDur = isMobile ? 4 : 14;
@@ -719,6 +722,8 @@ function setBabyPath(wrapper) {
   wrapper.dataset.dir = dir;
   wrapper.style.setProperty('--dur', dur + 's');
 
+  // Use pixel values for transform: translate(sx, sy) → translate(ex, ey)
+  // All coords are absolute px from top-left of viewport
   if (dir === 'ltr') {
     const y = Math.floor(r() * (vh - 120) + 50);
     wrapper.style.setProperty('--sx', '-120px');
@@ -774,36 +779,59 @@ function resumeAllBabies() {
 }
 
 // ===================== FIREBASE REAL-TIME LISTENER =====================
+// Listen to targeted paths rather than root '/' — avoids re-downloading
+// all photos on every small change (coins, bets, wishes, etc.)
+function rerender() {
+  if (document.getElementById('app').classList.contains('active')) {
+    updateWallet();
+    renderMarkets();
+    if (document.getElementById('tab-leaderboard').style.display!=='none') renderLeaderboard();
+    if (document.getElementById('tab-wishes').style.display!=='none') renderWishes();
+  }
+  if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
+}
+
 function startListening() {
-  onValue(ref(db, '/'), (snapshot) => {
-    const data = snapshot.val() || {};
-    state.players  = data.players  || {};
-    state.resolved = data.resolved || {};
-    state.wishes   = data.wishes   ? Object.values(data.wishes).sort((a,b)=>b.ts-a.ts) : [];
-    state.nameGuessAnswer = data.nameGuessAnswer || null;
-    state.nameGuessWinner = data.nameGuessWinner || null;
-
-    // Keep the baby parade in sync with the player list
+  // Players: coins, bets, nameGuess — everything except photos (photos rarely change)
+  onValue(ref(db, 'players'), snap => {
+    state.players = snap.val() || {};
     syncBabies();
+    rerender();
+  });
 
-    // Re-render whatever is currently visible
-    if (document.getElementById('app').classList.contains('active')) {
-      updateWallet();
-      const activeTab = document.querySelector('.nav-tab.active')?.id?.replace('tab-btn-','')
-        || (document.getElementById('tab-markets').style.display!=='none' ? 'markets'
-          : document.getElementById('tab-leaderboard').style.display!=='none' ? 'leaderboard' : 'wishes');
-      if (activeTab==='markets' || document.getElementById('tab-markets').style.display!=='none') renderMarkets();
-      if (document.getElementById('tab-leaderboard').style.display!=='none') renderLeaderboard();
-      if (document.getElementById('tab-wishes').style.display!=='none') renderWishes();
-    }
+  onValue(ref(db, 'resolved'), snap => {
+    state.resolved = snap.val() || {};
+    rerender();
+  });
+
+  onValue(ref(db, 'wishes'), snap => {
+    state.wishes = snap.val() ? Object.values(snap.val()).sort((a,b)=>b.ts-a.ts) : [];
+    if (document.getElementById('app').classList.contains('active') &&
+        document.getElementById('tab-wishes').style.display!=='none') renderWishes();
+  });
+
+  onValue(ref(db, 'nameGuessAnswer'), snap => {
+    state.nameGuessAnswer = snap.val() ?? null;
+    // Only re-render if app is active — name answer only affects markets tab
+    if (document.getElementById('app').classList.contains('active')) { updateWallet(); renderMarkets(); }
+    if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
+  });
+  onValue(ref(db, 'nameGuessWinner'), snap => {
+    state.nameGuessWinner = snap.val() || null;
+    if (document.getElementById('app').classList.contains('active')) { updateWallet(); renderMarkets(); }
     if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
   });
 }
 
-// ===================== AUDIO =====================
+// Reuse a single AudioContext — creating one per quack leaks contexts
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx || _audioCtx.state === 'closed') _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return _audioCtx;
+}
 function playQuack() {
   try {
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const ctx = getAudioCtx();
     const osc = ctx.createOscillator(); const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type='sine';
@@ -818,6 +846,9 @@ function playQuack() {
 
 // ===================== COUNTDOWN =====================
 function updateCountdown() {
+  const welcomeActive=document.getElementById('welcome').classList.contains('active');
+  const tvActive=document.getElementById('tvScreen').classList.contains('active');
+  if(!welcomeActive&&!tvActive) return;
   const now=new Date(), diff=DUE_DATE-now;
   if(diff<=0){['cdDays','cdHours','cdMins','cdSecs'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0'});return;}
   const days=Math.floor(diff/86400000),hours=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
@@ -825,8 +856,13 @@ function updateCountdown() {
   s('cdDays',days);s('cdHours',hours);s('cdMins',mins);s('cdSecs',secs);
   const tvEl=document.getElementById('tvCountdown');
   if(tvEl&&document.getElementById('tvScreen').classList.contains('active')){
-    tvEl.innerHTML=[['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([l,v])=>
-      `<div class="tv-count-unit"><div class="tv-count-num">${String(v).padStart(2,'0')}</div><div class="tv-count-lbl">${l}</div></div>`).join('');
+    // Only rebuild HTML when a value actually changes — avoids a DOM write every second when TV is idle
+    const cdKey=`${days}:${hours}:${mins}:${secs}`;
+    if(tvEl.dataset.cdKey!==cdKey){
+      tvEl.dataset.cdKey=cdKey;
+      tvEl.innerHTML=[['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([l,v])=>
+        `<div class="tv-count-unit"><div class="tv-count-num">${String(v).padStart(2,'0')}</div><div class="tv-count-lbl">${l}</div></div>`).join('');
+    }
   }
 }
 setInterval(updateCountdown,1000); updateCountdown();
@@ -875,11 +911,12 @@ async function joinGame() {
     currentPlayer=name;
     localStorage.setItem('bbpm_player',name); // remember name across page reloads
     showApp();
+    setTimeout(launchConfetti, 200); // 🎉 welcome burst
   } catch(err) {
     toast('Connection error — check your Firebase config!');
     console.error(err);
+    showLoading(false);
   }
-  showLoading(false);
 }
 
 function showLoading(on) {
@@ -913,7 +950,13 @@ function showApp() {
   updateWallet(); renderMarkets(); setMobileNav('markets');
   resumeAllBabies();
 }
-function enterTVMode(){ showScreen('tvScreen'); renderTV(); resumeAllBabies(); }
+function enterTVMode(){
+  showScreen('tvScreen');
+  const dateStr = DUE_DATE.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const sub = document.getElementById('tvSubtitle');
+  if(sub) sub.textContent = `Live Predictions — Due ${dateStr}`;
+  renderTV(); resumeAllBabies();
+}
 function exitTVMode(){
   if(currentPlayer) showApp();
   else showScreen('welcome');
@@ -937,13 +980,20 @@ function updateWallet() {
 }
 
 // ===================== MARKETS =====================
+const _safeDiv=document.createElement('div');
+function safeText(s){ _safeDiv.textContent=s; return _safeDiv.innerHTML; }
+function escAttr(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
 let pendingOption = {};
-function escQ(s){return s.replace(/'/g,"\\'")}
 
 function renderMarkets() {
   const grid=document.getElementById('marketsGrid');
   const p=state.players[currentPlayer];
   if(!p||!grid) return;
+  // Skip rebuild if tab isn't shown — avoids wasted work
+  if(document.getElementById('tab-markets').style.display==='none') return;
+  // Don't rebuild while a bet zone is open — user is mid-interaction
+  if(document.querySelector('.bet-zone.open')) return;
 
   grid.innerHTML=MARKETS.map(m=>{
     const myBet=p.bets?.[m.id];
@@ -963,13 +1013,13 @@ function renderMarkets() {
           <div class="name-guesses-title">✍️ Everyone's guesses</div>
           ${allGuesses.map(g=>{
             const av=g.photo
-              ?`<img class="ng-avatar" src="${g.photo}" alt="${g.name}"/>`
-              :`<div class="ng-avatar">${g.name.charAt(0).toUpperCase()}</div>`;
+              ?`<img class="ng-avatar" src="${escAttr(g.photo)}" alt="${escAttr(g.name)}"/>`
+              :`<div class="ng-avatar">${safeText(g.name.charAt(0).toUpperCase())}</div>`;
             const winner=isResolved&&g.guess.toLowerCase()===state.nameGuessAnswer?.toLowerCase();
             return `<div class="ng-row ${g.isMe?'ng-me':''}">
               ${av}
-              <span class="ng-name">${g.name}${g.isMe?' (you)':''}</span>
-              <span class="ng-guess">${g.guess}${winner?' 🏆':''}</span>
+              <span class="ng-name">${safeText(g.name)}${g.isMe?' (you)':''}</span>
+              <span class="ng-guess">${safeText(g.guess)}${winner?' 🏆':''}</span>
             </div>`;
           }).join('')}
         </div>`:'';
@@ -977,13 +1027,13 @@ function renderMarkets() {
       return `<div class="market-card">
         <div class="market-header"><div class="market-question">${m.question}</div><span class="market-tag">${m.tag}</span></div>
         ${isResolved
-          ?`<p style="color:var(--duckling-dark);font-weight:700;">🎉 The name was: <strong>${state.nameGuessAnswer||'?'}</strong></p>
+          ?`<p style="color:var(--duckling-dark);font-weight:700;">🎉 The name was: <strong>${safeText(state.nameGuessAnswer||'?')}</strong></p>
              ${state.nameGuessWinner===currentPlayer?'<p style="color:var(--grass);font-weight:700;margin-top:4px;">🏆 You guessed correctly!</p>':''}`
           :`<div class="name-guess-zone">
-              <input class="name-guess-input" type="text" id="nameGuessInput" placeholder="Your guess for baby's name..." value="${myGuess}" maxlength="40" />
+              <input class="name-guess-input" type="text" id="nameGuessInput" placeholder="Your guess for baby's name..." value="${escAttr(myGuess)}" maxlength="40" />
               <button class="btn btn-duckling btn-sm" onclick="saveNameGuess()">Save ✓</button>
             </div>
-            ${myGuess?`<p style="font-size:0.82rem;color:var(--soft);margin-top:6px;">Your guess: <strong>${myGuess}</strong></p>`:''}`
+            ${myGuess?`<p style="font-size:0.82rem;color:var(--soft);margin-top:6px;">Your guess: <strong>${safeText(myGuess)}</strong></p>`:''}`
         }
         ${guessesHtml}
       </div>`;
@@ -991,15 +1041,18 @@ function renderMarkets() {
 
     const totalByOpt=getTotals(m.id);
     const totalAll=Object.values(totalByOpt).reduce((a,b)=>a+b,0);
+    // Pre-compute voter counts per option in one pass to avoid O(players) per option
+    const votersByOpt={};
+    Object.values(state.players).forEach(p=>{const b=p.bets?.[m.id];if(b)votersByOpt[b.option]=(votersByOpt[b.option]||0)+1;});
     const optionsHtml=m.options.map(opt=>{
       const pct=totalAll?Math.round((totalByOpt[opt]||0)/totalAll*100):Math.round(100/m.options.length);
       const optCoins=totalByOpt[opt]||0;
-      const voters=getVoters(m.id,opt);
+      const voters=votersByOpt[opt]||0;
       const isMyBet=myBet&&myBet.option===opt;
       const isWinner=resolved===opt;
       let cls='option-btn'+(isMyBet?' my-bet':'');
       const betLabel=isMyBet?` ${COIN}${myBet.amount} · tap to add more`:'';
-      return `<button class="${cls}" style="--pct:${pct}%" onclick="selectOption('${m.id}','${escQ(opt)}')" ${resolved?'disabled':''}>
+      return `<button class="${cls}" style="--pct:${pct}%" data-mid="${escAttr(m.id)}" data-opt="${escAttr(opt)}" ${resolved?'disabled':''}>
         <span class="option-label">${opt}${isMyBet?`<span style="font-size:0.75rem;opacity:0.7;font-weight:500"> ${betLabel}</span>`:''}${isWinner?' ✓':''}</span>
         <span class="option-meta">
           <span class="option-voters">${voters} bet${voters!==1?'s':''}</span>
@@ -1057,8 +1110,8 @@ function selectOption(marketId,option) {
   pendingOption[marketId]=option;
   const labelEl=document.getElementById(`betLabel-${marketId}`);
   if(labelEl) labelEl.innerHTML=existingBet
-    ? `<strong>${option}</strong> <span style="color:var(--soft);font-weight:500;font-size:0.82rem">(currently ${COIN}${existingBet.amount} — adding more)</span>`
-    : `<strong>${option}</strong>`;
+    ? `<strong>${safeText(option)}</strong> <span style="color:var(--soft);font-weight:500;font-size:0.82rem">(currently ${COIN}${existingBet.amount} — adding more)</span>`
+    : `<strong>${safeText(option)}</strong>`;
   document.getElementById(`bet-${marketId}`).classList.add('open');
   document.getElementById(`bet-${marketId}`).scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -1066,22 +1119,26 @@ function closeBet(mid){document.getElementById(`bet-${mid}`).classList.remove('o
 function setAmt(mid,amt){document.getElementById(`betAmt-${mid}`).value=amt;}
 
 async function placeBet(marketId) {
-  const p=state.players[currentPlayer];
   const opt=pendingOption[marketId];
   if(!opt){toast('Pick an option first!');return;}
-  const amt=parseInt(document.getElementById(`betAmt-${marketId}`).value);
-  if(!amt||amt<1){toast('Enter a valid amount!');return;}
-  if(amt>p.coins){toast(`You only have ${COIN} ${p.coins}!`);return;}
 
   const btn=document.getElementById(`betConfirmBtn-${marketId}`);
   if(btn){btn.disabled=true;btn.textContent='Saving...';}
 
   try {
-    const existingAmt=p.bets?.[marketId]?.amount||0;
+    // Re-read fresh player data to avoid stale coin counts from concurrent updates
+    const snap=await get(ref(db,`players/${currentPlayer}`));
+    const fresh=snap.val();
+    if(!fresh){toast('Player not found!');return;}
+
+    const amt=parseInt(document.getElementById(`betAmt-${marketId}`).value);
+    if(!amt||amt<1){toast('Enter a valid amount!');if(btn){btn.disabled=false;btn.textContent=`Place Bet ${COIN}`;}return;}
+    if(amt>fresh.coins){toast(`You only have ${COIN} ${fresh.coins}!`);if(btn){btn.disabled=false;btn.textContent=`Place Bet ${COIN}`;}return;}
+
+    const existingAmt=fresh.bets?.[marketId]?.amount||0;
     const newTotal=existingAmt+amt;
-    const newCoins=p.coins-amt;
     await update(ref(db,`players/${currentPlayer}`),{
-      coins: newCoins,
+      coins: fresh.coins-amt,
       [`bets/${marketId}`]: {option:opt, amount:newTotal}
     });
     playQuack();
@@ -1103,6 +1160,7 @@ function getTotals(mid) {
 }
 function getVoters(mid,opt){return Object.values(state.players).filter(p=>p.bets?.[mid]?.option===opt).length;}
 
+
 // ===================== LEADERBOARD =====================
 function renderLeaderboard() {
   const list=document.getElementById('leaderboardList');
@@ -1111,11 +1169,11 @@ function renderLeaderboard() {
   const medals=['🥇','🥈','🥉'];
   list.innerHTML=scores.map((s,i)=>{
     const isMe=s.name===currentPlayer;
-    const avHtml=s.photo?`<img class="lb-avatar" src="${s.photo}" alt="${s.name}" />`:`<div class="lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
+    const avHtml=s.photo?`<img class="lb-avatar" src="${escAttr(s.photo)}" alt="${escAttr(s.name)}" />`:`<div class="lb-avatar">${safeText(s.name.charAt(0).toUpperCase())}</div>`;
     return `<div class="lb-row ${isMe?'me':''}">
       <div class="lb-rank ${i<3?'top':''}">${medals[i]||i+1}</div>
       ${avHtml}
-      <div class="lb-name">${s.name} ${isMe?'<span class="lb-you">YOU</span>':''}</div>
+      <div class="lb-name">${safeText(s.name)} ${isMe?'<span class="lb-you">YOU</span>':''}</div>
       <div class="lb-bets">${s.bets} bet${s.bets!==1?'s':''}</div>
       <div class="lb-coins">${COIN} ${s.coins}</div>
     </div>`;
@@ -1127,22 +1185,22 @@ async function postWish() {
   const text=document.getElementById('wishText').value.trim();
   if(!text){toast('Write something first!');return;}
   const photo = state.players[currentPlayer]?.photo || photoData || null;
-  await push(ref(db,'wishes'),{
-    name:currentPlayer,
-    text,
-    photo,
-    ts:Date.now()
-  });
-  document.getElementById('wishText').value='';
-  toast('Wish sent! 🌿');
+  try {
+    await push(ref(db,'wishes'),{ name:currentPlayer, text, photo, ts:Date.now() });
+    document.getElementById('wishText').value='';
+    toast('Wish sent! 🌿');
+  } catch(err) {
+    toast('Could not send wish — check your connection.');
+    console.error(err);
+  }
 }
 function renderWishes() {
   const list=document.getElementById('wishesList');
   const wishes=state.wishes||[];
   if(!wishes.length){list.innerHTML='<div class="empty-state">Be the first to leave a wish! 🌿</div>';return;}
   list.innerHTML=wishes.map(w=>{
-    const avHtml=w.photo?`<img class="wish-avatar" src="${w.photo}" alt="${w.name}" />`:`<div class="wish-avatar">${w.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="wish-card"><div class="wish-author">${avHtml}<span class="wish-name">${w.name}</span></div><div class="wish-text">"${w.text}"</div></div>`;
+    const avHtml=w.photo?`<img class="wish-avatar" src="${escAttr(w.photo)}" alt="${escAttr(w.name)}" />`:`<div class="wish-avatar">${safeText(w.name.charAt(0).toUpperCase())}</div>`;
+    return `<div class="wish-card"><div class="wish-author">${avHtml}<span class="wish-name">${safeText(w.name)}</span></div><div class="wish-text">"${safeText(w.text)}"</div></div>`;
   }).join('');
 }
 
@@ -1158,7 +1216,7 @@ function renderTVGrid() {
       const pct=totalAll?Math.round((totalByOpt[opt]||0)/totalAll*100):Math.round(100/m.options.length);
       const isLeading=pct===maxPct&&totalAll>0;
       return `<div class="tv-bar-row">
-        <div class="tv-bar-label" title="${opt}">${opt}</div>
+        <div class="tv-bar-label" title="${escAttr(opt)}">${safeText(opt)}</div>
         <div class="tv-bar-track"><div class="tv-bar-fill ${isLeading?'leading':''}" style="width:${pct}%"></div></div>
         <div class="tv-bar-pct">${pct}%</div>
       </div>`;
@@ -1171,8 +1229,8 @@ function renderTVLeaderboard() {
   const medals=['🥇','🥈','🥉'];
   const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0,photo:p.photo})).sort((a,b)=>b.coins-a.coins).slice(0,8);
   lb.innerHTML=scores.map((s,i)=>{
-    const avHtml=s.photo?`<img class="tv-lb-avatar" src="${s.photo}" alt="${s.name}" />`:`<div class="tv-lb-avatar">${s.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="tv-lb-row"><div class="tv-lb-rank">${medals[i]||i+1}</div>${avHtml}<div class="tv-lb-name">${s.name}</div><div class="tv-lb-coins">${COIN} ${s.coins}</div></div>`;
+    const avHtml=s.photo?`<img class="tv-lb-avatar" src="${escAttr(s.photo)}" alt="${escAttr(s.name)}" />`:`<div class="tv-lb-avatar">${safeText(s.name.charAt(0).toUpperCase())}</div>`;
+    return `<div class="tv-lb-row"><div class="tv-lb-rank">${medals[i]||i+1}</div>${avHtml}<div class="tv-lb-name">${safeText(s.name)}</div><div class="tv-lb-coins">${COIN} ${s.coins}</div></div>`;
   }).join('')||'<div style="color:rgba(255,255,255,0.4);font-size:0.88rem;">Waiting for players...</div>';
 }
 
@@ -1182,7 +1240,7 @@ function renderAdmin() {
   grid.innerHTML=MARKETS.map(m=>{
     if(m.isNameGuess){
       const winner=state.nameGuessWinner;
-      const allGuesses=Object.entries(state.players).filter(([,p])=>p.nameGuess).map(([name,p])=>`${name}: "${p.nameGuess}"`).join('<br>');
+      const allGuesses=Object.entries(state.players).filter(([,p])=>p.nameGuess).map(([name,p])=>`${safeText(name)}: "${safeText(p.nameGuess)}"`).join('<br>');
       return `<div class="resolve-card">
         <div class="resolve-q">${m.question}</div>
         <div style="font-size:0.83rem;color:var(--soft);margin-bottom:10px;line-height:1.8">${allGuesses||'No guesses yet'}</div>
@@ -1191,18 +1249,18 @@ function renderAdmin() {
           <input class="name-award-input" id="nameWinnerInput" placeholder="Winner's name..." />
           <button class="btn btn-pond btn-sm" onclick="resolveNameGuess()">Award 🏆</button>
         </div>
-        ${winner?`<p style="font-size:0.83rem;color:var(--soft);margin-top:6px">✓ Winner: <strong>${winner}</strong> (name: ${state.nameGuessAnswer})</p>`:''}
+        ${winner?`<p style="font-size:0.83rem;color:var(--soft);margin-top:6px">✓ Winner: <strong>${safeText(winner)}</strong> (name: ${safeText(state.nameGuessAnswer||'')})</p>`:''}
       </div>`;
     }
     const resolved=state.resolved[m.id];
     const optsHtml=m.options.map(opt=>{
       const cls=resolved===opt?'resolve-opt-btn resolved-winner':'resolve-opt-btn';
-      return `<button class="${cls}" onclick="resolveMarket('${m.id}','${escQ(opt)}')">${opt}</button>`;
+      return `<button class="${cls}" data-mid="${escAttr(m.id)}" data-opt="${escAttr(opt)}">${safeText(opt)}</button>`;
     }).join('');
     return `<div class="resolve-card">
       <div class="resolve-q">${m.question}</div>
       <div class="resolve-options">${optsHtml}</div>
-      ${resolved?`<p style="font-size:0.82rem;color:var(--soft);margin-top:5px">✓ Winner: <strong>${resolved}</strong></p>`:''}
+      ${resolved?`<p style="font-size:0.82rem;color:var(--soft);margin-top:5px">✓ Winner: <strong>${safeText(resolved)}</strong></p>`:''}
     </div>`;
   }).join('');
 }
@@ -1213,7 +1271,10 @@ async function resolveNameGuess() {
   if(!answer||!winner){toast('Enter both the name and winner!');return;}
   const updates={nameGuessAnswer:answer,nameGuessWinner:winner};
   if(state.players[winner]){
-    updates[`players/${winner}/coins`]=(state.players[winner].coins||0)+200;
+    // Re-read fresh coins to avoid stale state race condition
+    const freshSnap=await get(ref(db,`players/${winner}/coins`));
+    const freshCoins=freshSnap.val()??0;
+    updates[`players/${winner}/coins`]=freshCoins+200;
     toast(`🏆 ${winner} awarded 200 ${COIN} for guessing the name!`);
   }
   await update(ref(db),updates);
@@ -1222,13 +1283,17 @@ async function resolveNameGuess() {
 
 async function resolveMarket(marketId,winner) {
   if(state.resolved[marketId]){if(!confirm('Re-resolve?'))return; await undoPayouts(marketId);}
+  // Re-read fresh player state so payouts are calculated on accurate coin balances
+  const snap = await get(ref(db,'players'));
+  const freshPlayers = snap.val() || {};
   const updates={[`resolved/${marketId}`]:winner};
-  // Calculate and write payouts
-  const totals=getTotals(marketId);
-  const totalPool=Object.values(totals).reduce((a,b)=>a+b,0);
-  const winnerPool=totals[winner]||0;
+  // Calculate totals from freshPlayers (not stale state) for accurate payouts
+  const freshTotals={};
+  Object.values(freshPlayers).forEach(p=>{const b=p.bets?.[marketId];if(b)freshTotals[b.option]=(freshTotals[b.option]||0)+b.amount;});
+  const totalPool=Object.values(freshTotals).reduce((a,b)=>a+b,0);
+  const winnerPool=freshTotals[winner]||0;
   if(winnerPool){
-    Object.entries(state.players).forEach(([name,p])=>{
+    Object.entries(freshPlayers).forEach(([name,p])=>{
       const b=p.bets?.[marketId];
       if(b&&b.option===winner){
         const payout=Math.round(totalPool*(b.amount/winnerPool));
@@ -1274,8 +1339,8 @@ function renderResultsPodium() {
   podium.innerHTML=order.map((s,i)=>{
     if(!s)return '<div></div>';
     const c=configs[i];
-    const avHtml=s.photo?`<img class="podium-avatar ${c.cls}" src="${s.photo}" alt="${s.name}" />`:`<div class="podium-avatar ${c.cls}">${s.name.charAt(0).toUpperCase()}</div>`;
-    return `<div class="podium-slot"><div class="podium-avatar-wrap">${avHtml}</div><div class="podium-name">${s.name}</div><div class="podium-coins ${c.cls}">${COIN} ${s.coins}</div><div class="${c.block}"><span class="podium-medal">${c.medal}</span></div></div>`;
+    const avHtml=s.photo?`<img class="podium-avatar ${c.cls}" src="${escAttr(s.photo)}" alt="${escAttr(s.name)}" />`:`<div class="podium-avatar ${c.cls}">${safeText(s.name.charAt(0).toUpperCase())}</div>`;
+    return `<div class="podium-slot"><div class="podium-avatar-wrap">${avHtml}</div><div class="podium-name">${safeText(s.name)}</div><div class="podium-coins ${c.cls}">${COIN} ${s.coins}</div><div class="${c.block}"><span class="podium-medal">${c.medal}</span></div></div>`;
   }).join('');
 }
 function renderResultsGrid() {
@@ -1283,7 +1348,7 @@ function renderResultsGrid() {
   grid.innerHTML=MARKETS.filter(m=>!m.isNameGuess).map(m=>{
     const resolved=state.resolved[m.id]; if(!resolved)return '';
     const winners=Object.entries(state.players).filter(([,p])=>p.bets?.[m.id]?.option===resolved).map(([name])=>name);
-    return `<div class="result-card"><div class="result-card-q">${m.question}</div><div class="result-winner-opt">✓ ${resolved}</div><div class="result-correct-bettors">${winners.length?'🎉 '+winners.join(', '):'Nobody called it!'}</div></div>`;
+    return `<div class="result-card"><div class="result-card-q">${safeText(m.question)}</div><div class="result-winner-opt">✓ ${safeText(resolved)}</div><div class="result-correct-bettors">${winners.length?'🎉 '+winners.map(safeText).join(', '):'Nobody called it!'}</div></div>`;
   }).join('');
 }
 
@@ -1294,28 +1359,42 @@ function showCertificate() {
   const winner=scores[0];
   document.getElementById('certName').textContent=winner.name;
   document.getElementById('certCoins').textContent=`${COIN} ${winner.coins} bread crumbs`;
+  // Keep the sig date in sync with DUE_DATE constant
+  const sigEl=document.getElementById('certSig');
+  if(sigEl) sigEl.textContent=`Make Way for Baby \u00b7 ${DUE_DATE.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
   document.getElementById('certOverlay').classList.add('open');
 }
 function downloadCertificate() {
   const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
   if(!scores.length)return;
   const w=scores[0];
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#FBF7EE;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;}.cert{max-width:600px;width:90%;padding:48px;text-align:center;border:6px solid #A8CC88;border-radius:24px;background:linear-gradient(160deg,#FBF7EE,#EFF8F0);}h1{font-family:'Lora',serif;font-size:2.8rem;color:#4A7C8E;font-style:italic;margin:12px 0;}.name{font-family:'Lora',serif;font-size:3rem;font-weight:700;color:#2C3E2D;margin:16px 0;}.sub{font-size:0.8rem;color:#4A5E3A;text-transform:uppercase;letter-spacing:.2em;font-weight:700;}.body{font-size:1rem;color:#4A5E3A;line-height:1.8;margin:16px 0;}.badge{display:inline-block;background:linear-gradient(135deg,#F5C842,#C99A10);color:#2C3E2D;padding:8px 24px;border-radius:100px;font-weight:800;margin:12px 0;}.sig{font-family:'Lora',serif;font-style:italic;font-size:1.3rem;color:#4A7C8E;margin-top:16px;}</style></head><body><div class="cert"><div style="font-size:4rem">🏆</div><div class="sub">Official Certificate of Achievement</div><h1>Baby Prophet</h1><div class="name">${w.name}</div><div class="body">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div><div class="badge">🍞 ${w.coins} bread crumbs</div><div style="font-size:1.4rem;margin:12px 0">🌿 🦆 🌿 🦆 🌿</div><div class="sig">Make Way for Baby · May 16, 2026</div><div style="font-size:1.8rem;letter-spacing:8px;margin-top:12px;opacity:.5">🐥 🐥 🐥 🐥 🐥</div></div></body></html>`;
+  const dateStr = DUE_DATE.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const safeName=w.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#FBF7EE;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Nunito',sans-serif;}.cert{max-width:600px;width:90%;padding:48px;text-align:center;border:6px solid #A8CC88;border-radius:24px;background:linear-gradient(160deg,#FBF7EE,#EFF8F0);}h1{font-family:'Lora',serif;font-size:2.8rem;color:#4A7C8E;font-style:italic;margin:12px 0;}.name{font-family:'Lora',serif;font-size:3rem;font-weight:700;color:#2C3E2D;margin:16px 0;}.sub{font-size:0.8rem;color:#4A5E3A;text-transform:uppercase;letter-spacing:.2em;font-weight:700;}.body{font-size:1rem;color:#4A5E3A;line-height:1.8;margin:16px 0;}.badge{display:inline-block;background:linear-gradient(135deg,#F5C842,#C99A10);color:#2C3E2D;padding:8px 24px;border-radius:100px;font-weight:800;margin:12px 0;}.sig{font-family:'Lora',serif;font-style:italic;font-size:1.3rem;color:#4A7C8E;margin-top:16px;}</style></head><body><div class="cert"><div style="font-size:4rem">🏆</div><div class="sub">Official Certificate of Achievement</div><h1>Baby Prophet</h1><div class="name">${safeName}</div><div class="body">has demonstrated extraordinary foresight<br>and remarkable duck-like wisdom<br>in predicting the arrival of the newest duckling.</div><div class="badge">🍞 ${w.coins} bread crumbs</div><div style="font-size:1.4rem;margin:12px 0">🌿 🦆 🌿 🦆 🌿</div><div class="sig">Make Way for Baby · ${dateStr}</div><div style="font-size:1.8rem;letter-spacing:8px;margin-top:12px;opacity:.5">🐥 🐥 🐥 🐥 🐥</div></div></body></html>`;
   const blob=new Blob([html],{type:'text/html'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  const certUrl=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=certUrl;
   a.download=`baby-prophet-certificate-${w.name.replace(/\s+/g,'-')}.html`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(certUrl), 10000); // free memory after download starts
   toast('Certificate downloaded! 🏅');
 }
 
 // ===================== CONFETTI =====================
+let _confettiTimers=[];
 function launchConfetti() {
+  // Cancel any in-progress confetti before launching a fresh burst
+  _confettiTimers.forEach(id=>clearTimeout(id));
+  _confettiTimers=[];
+  document.querySelectorAll('.confetti-piece').forEach(el=>el.remove());
   const colors=['#F5C842','#4A7C8E','#A8CC88','#E8756A','#C5A8C0','#6FA3B5'];
   for(let i=0;i<120;i++){
-    setTimeout(()=>{
+    const tid=setTimeout(()=>{
       const el=document.createElement('div'); el.className='confetti-piece';
-      el.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*1.5}s;transform:rotate(${Math.random()*360}deg);`;
+      const startX = (Math.random()*120 - 60) + 'vw';
+      el.style.cssText=`--cx:${startX};left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*1.5}s;`;
       document.body.appendChild(el); setTimeout(()=>el.remove(),5000);
     },i*20);
+    _confettiTimers.push(tid);
   }
 }
 
@@ -1331,27 +1410,41 @@ function toast(msg) {
 Object.assign(window,{
   joinGame,showAdminLogin,goBack,enterTVMode,exitTVMode,
   showTab,setMobileNav,handlePhotoUpload,
-  selectOption,closeBet,setAmt,placeBet,saveNameGuess,
+  closeBet,setAmt,placeBet,saveNameGuess,
   postWish,showResultsScreen,showCertificate,downloadCertificate,
-  resolveMarket,resolveNameGuess,renderAdmin
+  resolveNameGuess,renderAdmin
+});
+
+// ===================== EVENT DELEGATION =====================
+// Handle option-btn clicks (markets) and resolve-opt-btn clicks (admin)
+// Using delegation so dynamically rendered buttons work without inline onclick + escaping
+document.addEventListener('click', e => {
+  const optBtn = e.target.closest('.option-btn');
+  if(optBtn && !optBtn.disabled){
+    selectOption(optBtn.dataset.mid, optBtn.dataset.opt);
+    return;
+  }
+  const resBtn = e.target.closest('.resolve-opt-btn');
+  if(resBtn){
+    resolveMarket(resBtn.dataset.mid, resBtn.dataset.opt);
+    return;
+  }
 });
 
 // ===================== INIT =====================
-// Start listening to Firebase immediately
 startListening();
 
-// Check if returning player — auto log them back in
+// Auto-rejoin returning player — wait for Firebase to confirm they exist
+// rather than relying on a fixed timeout that fails on slow connections
 const savedName = localStorage.getItem('bbpm_player');
 if (savedName) {
   document.getElementById('nameInput').value = savedName;
-  // Auto-rejoin after Firebase has loaded (short delay)
-  setTimeout(async () => {
-    const snap = await get(ref(db, `players/${savedName}`));
-    if (snap.exists()) {
+  get(ref(db, `players/${savedName}`)).then(snap => {
+    if (snap.exists() && !currentPlayer) {
       currentPlayer = savedName;
       showApp();
     }
-  }, 800);
+  }).catch(()=>{}); // startListening() will handle ongoing updates
 }
 </script>
 </body>
