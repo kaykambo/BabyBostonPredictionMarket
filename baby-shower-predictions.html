@@ -537,7 +537,8 @@ h1.title em { color: var(--pond); font-style: italic; }
   <div class="nav">
     <div class="nav-brand">🦆 Admin Panel</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-secondary btn-sm" onclick="showResultsScreen()">🎉 Show Results</button>
+      <button class="btn btn-duckling btn-sm" id="publishBtn" onclick="toggleResultsMode()">🎉 Publish Results</button>
+      <button class="btn btn-secondary btn-sm" onclick="showResultsScreen()">👁️ Preview</button>
       <button class="btn btn-secondary btn-sm" onclick="goBack()">← Back</button>
     </div>
   </div>
@@ -680,7 +681,7 @@ const DUE_DATE = new Date('2026-05-16T00:00:00');
 
 // ===================== STATE =====================
 // All shared state lives in Firebase. Local state only tracks current player session.
-let state = { players:{}, resolved:{}, wishes:[], nameGuessAnswer:null, nameGuessWinner:null };
+let state = { players:{}, resolved:{}, wishes:[], nameGuessAnswer:null, nameGuessWinner:null, resultsMode:false };
 let currentPlayer = null;
 let photoData = null; // local only — photos stored as base64 in Firebase player record
 
@@ -833,6 +834,14 @@ function startListening() {
     rerender();
   });
 
+  onValue(ref(db, 'resultsMode'), snap => {
+    state.resultsMode = snap.val() === true;
+    // If results mode just turned on and user is in the app, redirect them live
+    if (state.resultsMode && document.getElementById('app').classList.contains('active')) {
+      showResultsScreen();
+    }
+  });
+
   onValue(ref(db, 'wishes'), snap => {
     state.wishes = snap.val() ? Object.values(snap.val()).sort((a,b)=>b.ts-a.ts) : [];
     if (document.getElementById('app').classList.contains('active') &&
@@ -974,6 +983,8 @@ function showScreen(id) {
   if (wasAppOrTV && !isAppOrTV) pauseAllBabies();
 }
 function showApp() {
+  // If results have been published, send everyone straight there
+  if (state.resultsMode) { showResultsScreen(); return; }
   showScreen('app');
   document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
   updateWallet(); renderMarkets(); setMobileNav('markets');
@@ -1263,8 +1274,22 @@ function renderTVLeaderboard() {
   }).join('')||'<div style="color:rgba(255,255,255,0.4);font-size:0.88rem;">Waiting for players...</div>';
 }
 
+async function toggleResultsMode() {
+  const turning0n = !state.resultsMode;
+  if (turning0n && !confirm('This will send ALL users to the results screen and lock betting. Ready?')) return;
+  if (!turning0n && !confirm('This will bring users back to the betting screen. Confirm?')) return;
+  await set(ref(db, 'resultsMode'), turning0n);
+  toast(turning0n ? '🎉 Results published! All users redirected.' : '🔓 Betting re-opened.');
+}
+
 // ===================== ADMIN =====================
 function renderAdmin() {
+  // Keep publish button in sync with current resultsMode
+  const publishBtn = document.getElementById('publishBtn');
+  if (publishBtn) {
+    publishBtn.textContent = state.resultsMode ? '🔓 Unpublish Results' : '🎉 Publish Results';
+    publishBtn.className = state.resultsMode ? 'btn btn-ghost btn-sm' : 'btn btn-duckling btn-sm';
+  }
   const grid=document.getElementById('adminGrid');
   grid.innerHTML=MARKETS.map(m=>{
     if(m.isNameGuess){
