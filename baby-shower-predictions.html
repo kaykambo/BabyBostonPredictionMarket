@@ -104,6 +104,8 @@ h1.title em { color: var(--pond); font-style: italic; }
 .btn-duckling:hover { box-shadow: 0 10px 28px rgba(245,200,66,0.5); }
 .btn-pond { background: var(--pond); color: white; box-shadow: 0 6px 20px rgba(74,124,142,0.35); } /* alias for btn-primary */
 .btn-sm { padding: 8px 16px; font-size: 0.85rem; border-radius: 10px; }
+.btn-secondary { background: white; color: var(--pond); border: 1.5px solid var(--pond-pale); box-shadow: var(--shadow); }
+.btn-secondary:hover { border-color: var(--pond-light); box-shadow: var(--shadow-lg); }
 
 /* ====== NAV ====== */
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 0 24px; border-bottom: 2px dashed #c5ddc6; margin-bottom: 24px; flex-wrap: wrap; gap: 10px; }
@@ -273,6 +275,11 @@ h1.title em { color: var(--pond); font-style: italic; }
 .baby-stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .baby-stat-val { font-size: 1.05rem; color: white; font-weight: 800; }
 .podium-section-label { text-align: center; color: rgba(255,255,255,0.5); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .18em; margin-bottom: 16px; }
+.rest-leaderboard { max-width: 480px; margin: 0 auto 32px; display: flex; flex-direction: column; gap: 6px; }
+.rest-leaderboard .lb-row { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
+.rest-leaderboard .lb-name { color: rgba(255,255,255,0.85); }
+.rest-leaderboard .lb-rank { color: rgba(255,255,255,0.4); }
+.rest-leaderboard .lb-coins { color: var(--duckling); }
 
 /* ====== CERTIFICATE ====== */
 .cert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
@@ -592,6 +599,7 @@ h1.title em { color: var(--pond); font-style: italic; }
     <!-- PODIUM -->
     <div class="podium-section-label">🏆 Final Standings</div>
     <div class="winner-podium" id="winnerPodium"></div>
+    <div class="rest-leaderboard" id="restOfLeaderboard"></div>
 
     <!-- PREDICTION BREAKDOWN -->
     <div class="podium-section-label" style="margin-top:32px">🎯 How the Predictions Played Out</div>
@@ -889,22 +897,16 @@ function playQuack() {
 
 // ===================== COUNTDOWN =====================
 function updateCountdown() {
-  const tvActive=document.getElementById('tvScreen').classList.contains('active');
-  if(!tvActive) return;
+  if(!document.getElementById('tvScreen').classList.contains('active')) return;
+  const tvEl=document.getElementById('tvCountdown'); if(!tvEl) return;
   const now=new Date(), diff=DUE_DATE-now;
-  if(diff<=0){['cdDays','cdHours','cdMins','cdSecs'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0'});return;}
-  const days=Math.floor(diff/86400000),hours=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
-  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v).padStart(2,'0')};
-  s('cdDays',days);s('cdHours',hours);s('cdMins',mins);s('cdSecs',secs);
-  const tvEl=document.getElementById('tvCountdown');
-  if(tvEl&&document.getElementById('tvScreen').classList.contains('active')){
-    // Only rebuild HTML when a value actually changes — avoids a DOM write every second when TV is idle
-    const cdKey=`${days}:${hours}:${mins}:${secs}`;
-    if(tvEl.dataset.cdKey!==cdKey){
-      tvEl.dataset.cdKey=cdKey;
-      tvEl.innerHTML=[['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([l,v])=>
-        `<div class="tv-count-unit"><div class="tv-count-num">${String(v).padStart(2,'0')}</div><div class="tv-count-lbl">${l}</div></div>`).join('');
-    }
+  const days=Math.max(0,Math.floor(diff/86400000)),hours=Math.max(0,Math.floor((diff%86400000)/3600000)),mins=Math.max(0,Math.floor((diff%3600000)/60000)),secs=Math.max(0,Math.floor((diff%60000)/1000));
+  // Only rebuild HTML when a value changes — avoids a DOM write every second when TV is idle
+  const cdKey=`${days}:${hours}:${mins}:${secs}`;
+  if(tvEl.dataset.cdKey!==cdKey){
+    tvEl.dataset.cdKey=cdKey;
+    tvEl.innerHTML=[['Days',days],['Hrs',hours],['Min',mins],['Sec',secs]].map(([l,v])=>
+      `<div class="tv-count-unit"><div class="tv-count-num">${String(v).padStart(2,'0')}</div><div class="tv-count-lbl">${l}</div></div>`).join('');
   }
 }
 setInterval(updateCountdown,1000); updateCountdown();
@@ -988,11 +990,6 @@ function showScreen(id) {
 function showApp() {
   // Results is always the default landing page after joining
   showResultsScreen();
-}
-  showScreen('app');
-  document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
-  updateWallet(); renderMarkets(); setMobileNav('markets');
-  resumeAllBabies();
 }
 function enterTVMode(){
   showScreen('tvScreen');
@@ -1200,7 +1197,6 @@ function getTotals(mid) {
   Object.values(state.players).forEach(p=>{const b=p.bets?.[mid];if(b)t[b.option]=(t[b.option]||0)+b.amount;});
   return t;
 }
-function getVoters(mid,opt){return Object.values(state.players).filter(p=>p.bets?.[mid]?.option===opt).length;}
 
 
 // ===================== LEADERBOARD =====================
@@ -1378,14 +1374,16 @@ async function undoPayouts(marketId) {
 }
 
 // ===================== RESULTS =====================
+let _confettiFired = false;
 function showResultsScreen(){
   showScreen('resultsScreen');
   renderResultsPodium();renderResultsGrid();
   resumeAllBabies();
-  setTimeout(launchConfetti,400);
+  if (!_confettiFired) { _confettiFired=true; setTimeout(launchConfetti,400); }
 }
 function renderResultsPodium() {
   const podium=document.getElementById('winnerPodium');
+  const restEl=document.getElementById('restOfLeaderboard');
   // Exclude players who never placed a bet (still at full 500 starting coins, no bets object)
   const scores=Object.entries(state.players)
     .filter(([,p])=>p.bets&&Object.keys(p.bets).length>0)
@@ -1402,6 +1400,14 @@ function renderResultsPodium() {
     const avHtml=s.photo?`<img class="podium-avatar ${c.cls}" src="${escAttr(s.photo)}" alt="${escAttr(s.name)}" />`:`<div class="podium-avatar ${c.cls}">${safeText(s.name.charAt(0).toUpperCase())}</div>`;
     return `<div class="podium-slot"><div class="podium-avatar-wrap">${avHtml}</div><div class="podium-name">${safeText(s.name)}</div><div class="podium-coins ${c.cls}">${COIN} ${s.coins}</div><div class="${c.block}"><span class="podium-medal">${c.medal}</span></div></div>`;
   }).join('');
+  // Render 4th place and below in a compact list
+  if(restEl){
+    const rest=scores.slice(3);
+    restEl.innerHTML=rest.length?rest.map((s,i)=>{
+      const avHtml=s.photo?`<img class="lb-avatar" src="${escAttr(s.photo)}" alt="${escAttr(s.name)}" />`:`<div class="lb-avatar">${safeText(s.name.charAt(0).toUpperCase())}</div>`;
+      return `<div class="lb-row"><div class="lb-rank">${i+4}</div>${avHtml}<div class="lb-name">${safeText(s.name)}</div><div class="lb-coins">${COIN} ${s.coins}</div></div>`;
+    }).join(''):'';
+  }
 }
 function renderResultsGrid() {
   const grid=document.getElementById('resultsGrid');
@@ -1416,7 +1422,7 @@ function renderResultsGrid() {
 
 // ===================== CERTIFICATE =====================
 function showCertificate() {
-  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
+  const scores=Object.entries(state.players).filter(([,p])=>p.bets&&Object.keys(p.bets).length>0).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
   if(!scores.length)return;
   const winner=scores[0];
   document.getElementById('certName').textContent=winner.name;
@@ -1427,7 +1433,7 @@ function showCertificate() {
   document.getElementById('certOverlay').classList.add('open');
 }
 function downloadCertificate() {
-  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
+  const scores=Object.entries(state.players).filter(([,p])=>p.bets&&Object.keys(p.bets).length>0).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
   if(!scores.length)return;
   const w=scores[0];
   const dateStr = DUE_DATE.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -1474,7 +1480,7 @@ Object.assign(window,{
   showTab,setMobileNav,handlePhotoUpload,
   closeBet,setAmt,placeBet,saveNameGuess,
   postWish,showResultsScreen,showCertificate,downloadCertificate,
-  resolveNameGuess,renderAdmin
+  resolveNameGuess,renderAdmin,toggleResultsMode
 });
 
 // ===================== EVENT DELEGATION =====================
