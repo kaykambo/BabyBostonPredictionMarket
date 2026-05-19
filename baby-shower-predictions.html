@@ -263,6 +263,16 @@ h1.title em { color: var(--pond); font-style: italic; }
 .result-winner-opt { color: var(--duckling); font-weight: 800; font-size: 1rem; margin-bottom: 6px; }
 .result-correct-bettors { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
 .results-back-btn { display: block; margin: 0 auto; }
+.results-duck-row { font-size: 2.6rem; margin-bottom: 10px; letter-spacing: 8px; animation: duckBounce 1.2s ease-in-out infinite alternate; }
+@keyframes duckBounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+.results-baby-name { font-family: 'Lora', serif; font-size: clamp(2.4rem, 7vw, 4.5rem); font-weight: 700; color: white; font-style: italic; text-shadow: 0 4px 32px rgba(245,200,66,0.6); margin: 4px 0 6px; letter-spacing: 1px; }
+.baby-stats-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(245,200,66,0.3); border-radius: 20px; padding: 20px 24px; max-width: 560px; margin: 0 auto 36px; backdrop-filter: blur(8px); }
+.baby-stats-title { color: var(--duckling); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: .15em; margin-bottom: 14px; text-align: center; }
+.baby-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.baby-stat { display: flex; flex-direction: column; gap: 3px; background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 14px; }
+.baby-stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.baby-stat-val { font-size: 1.05rem; color: white; font-weight: 800; }
+.podium-section-label { text-align: center; color: rgba(255,255,255,0.5); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .18em; margin-bottom: 16px; }
 
 /* ====== CERTIFICATE ====== */
 .cert-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
@@ -559,14 +569,34 @@ h1.title em { color: var(--pond); font-style: italic; }
 <!-- ===== RESULTS ===== -->
 <div class="screen" id="resultsScreen">
   <div class="results-bg">
+    <!-- HERO ANNOUNCEMENT -->
     <div class="results-header">
-      <div style="font-size:3rem;margin-bottom:8px">🐣🎉🦆</div>
-      <div class="results-title">Baby has arrived!</div>
-      <div class="results-subtitle">Here's how everyone did...</div>
+      <div class="results-duck-row">🦆🐣🦆</div>
+      <div class="results-title">He's Here!</div>
+      <div class="results-baby-name">Welcome, Emmett</div>
+      <div class="results-subtitle">Born May 12th, 2026 · Boston, MA</div>
     </div>
+
+    <!-- BABY STATS CARD -->
+    <div class="baby-stats-card">
+      <div class="baby-stats-title">📋 The Official Stats</div>
+      <div class="baby-stats-grid">
+        <div class="baby-stat"><span class="baby-stat-label">⚖️ Weight</span><span class="baby-stat-val">7 lbs 12 oz</span></div>
+        <div class="baby-stat"><span class="baby-stat-label">📏 Length</span><span class="baby-stat-val">20.5 inches</span></div>
+        <div class="baby-stat"><span class="baby-stat-label">💇 Hair</span><span class="baby-stat-val">Brown</span></div>
+        <div class="baby-stat"><span class="baby-stat-label">👀 Looks Like</span><span class="baby-stat-val">A perfect mix!</span></div>
+      </div>
+    </div>
+
+    <!-- PODIUM -->
+    <div class="podium-section-label">🏆 Final Standings</div>
     <div class="winner-podium" id="winnerPodium"></div>
+
+    <!-- PREDICTION BREAKDOWN -->
+    <div class="podium-section-label" style="margin-top:32px">🎯 How the Predictions Played Out</div>
     <div class="results-grid" id="resultsGrid"></div>
-    <div style="text-align:center;margin-top:16px">
+
+    <div style="text-align:center;margin-top:24px;padding-bottom:40px">
       <button class="btn btn-duckling results-back-btn" onclick="showCertificate()">🏅 View Winner Certificate</button>
       <br><br>
       <button class="btn btn-ghost" style="color:rgba(255,255,255,0.5)" onclick="goBack()">← Back</button>
@@ -636,7 +666,6 @@ const db = getDatabase(app);
 const MARKETS = [
   { id:'gender', question:'Boy or girl?', tag:'🍼 Gender', options:['Boy 💙','Girl 💗'] },
   { id:'date', question:'Will baby arrive before, on, or after May 16th?', tag:'📅 Due Date', options:['Before May 16th','On May 16th','After May 16th'] },
-  { id:'eyes', question:"What color will baby's eyes be?", tag:'👁️ Eyes', options:['Blue','Brown','Green / Hazel','Grey'] },
   { id:'hair', question:"What will baby's hair look like at birth?", tag:'💇 Hair', options:['Bald & smooth','Blonde / light','Brown','Dark black','Red / auburn'] },
   { id:'weight', question:'What will the birth weight be?', tag:'⚖️ Weight', options:['Under 6 lbs','6–7 lbs','7–8 lbs','8–9 lbs','Over 9 lbs'] },
   { id:'length', question:'How long will baby be?', tag:'📏 Length', options:['Under 18 inches','18–19 inches','19–20 inches','20–21 inches','Over 21 inches'] },
@@ -1329,7 +1358,10 @@ function showResultsScreen(){
 }
 function renderResultsPodium() {
   const podium=document.getElementById('winnerPodium');
-  const scores=Object.entries(state.players).map(([name,p])=>({name,coins:p.coins||0,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
+  // Exclude players who never placed a bet (still at full 500 starting coins, no bets object)
+  const scores=Object.entries(state.players)
+    .filter(([,p])=>p.bets&&Object.keys(p.bets).length>0)
+    .map(([name,p])=>({name,coins:p.coins||0,photo:p.photo})).sort((a,b)=>b.coins-a.coins);
   const order=[scores[1],scores[0],scores[2]].filter(Boolean);
   const configs=[
     {cls:'silver',block:'podium-block silver',medal:'🥈'},
@@ -1345,9 +1377,11 @@ function renderResultsPodium() {
 }
 function renderResultsGrid() {
   const grid=document.getElementById('resultsGrid');
+  // Only include players who actually bet when listing winners
+  const activePlayers=Object.fromEntries(Object.entries(state.players).filter(([,p])=>p.bets&&Object.keys(p.bets).length>0));
   grid.innerHTML=MARKETS.filter(m=>!m.isNameGuess).map(m=>{
     const resolved=state.resolved[m.id]; if(!resolved)return '';
-    const winners=Object.entries(state.players).filter(([,p])=>p.bets?.[m.id]?.option===resolved).map(([name])=>name);
+    const winners=Object.entries(activePlayers).filter(([,p])=>p.bets?.[m.id]?.option===resolved).map(([name])=>name);
     return `<div class="result-card"><div class="result-card-q">${safeText(m.question)}</div><div class="result-winner-opt">✓ ${safeText(resolved)}</div><div class="result-correct-bettors">${winners.length?'🎉 '+winners.map(safeText).join(', '):'Nobody called it!'}</div></div>`;
   }).join('');
 }
