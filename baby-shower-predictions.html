@@ -793,7 +793,8 @@ function removeBabyEl(playerName) {
 function syncBabies() {
   const appActive = document.getElementById('app').classList.contains('active');
   const tvActive = document.getElementById('tvScreen').classList.contains('active');
-  if (!appActive && !tvActive) return;
+  const resultsActive = document.getElementById('resultsScreen').classList.contains('active');
+  if (!appActive && !tvActive && !resultsActive) return;
   const names = new Set(Object.keys(state.players));
   names.forEach(name => spawnBaby(name));
   Object.keys(babyEls).forEach(name => { if (!names.has(name)) removeBabyEl(name); });
@@ -980,11 +981,13 @@ function showScreen(id) {
   const mNav=document.getElementById('mobileNav');
   if(mNav) mNav.style.display=(id==='app')?'block':'none';
   const isAppOrTV = id === 'app' || id === 'tvScreen';
-  if (wasAppOrTV && !isAppOrTV) pauseAllBabies();
+  const isResultsActive = id === 'resultsScreen';
+  if (wasAppOrTV && !isAppOrTV && !isResultsActive) pauseAllBabies();
 }
 function showApp() {
-  // If results have been published, send everyone straight there
-  if (state.resultsMode) { showResultsScreen(); return; }
+  // Results is always the default landing page after joining
+  showResultsScreen();
+}
   showScreen('app');
   document.getElementById('greetingTitle').textContent=`Welcome, ${currentPlayer}! 🌿`;
   updateWallet(); renderMarkets(); setMobileNav('markets');
@@ -1379,6 +1382,7 @@ async function undoPayouts(marketId) {
 function showResultsScreen(){
   showScreen('resultsScreen');
   renderResultsPodium();renderResultsGrid();
+  resumeAllBabies();
   setTimeout(launchConfetti,400);
 }
 function renderResultsPodium() {
