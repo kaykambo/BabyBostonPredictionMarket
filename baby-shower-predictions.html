@@ -449,7 +449,7 @@ h1.title em { color: var(--pond); font-style: italic; }
 <div class="page">
 
 <!-- ===== WELCOME ===== -->
-<div class="screen active" id="welcome">
+<div class="screen" id="welcome">
   <div class="welcome-duck">🐥</div>
   <span class="ducks-row">🦆 🦆 🦆 🦆 🦆</span>
   <h1 class="title">Make Way for<br><em>Baby!</em></h1>
@@ -568,7 +568,7 @@ h1.title em { color: var(--pond); font-style: italic; }
 </div>
 
 <!-- ===== RESULTS ===== -->
-<div class="screen" id="resultsScreen">
+<div class="screen active" id="resultsScreen">
   <div class="results-bg">
     <!-- HERO ANNOUNCEMENT -->
     <div class="results-header">
@@ -820,6 +820,10 @@ function rerender() {
     if (document.getElementById('tab-wishes').style.display!=='none') renderWishes();
   }
   if (document.getElementById('tvScreen').classList.contains('active')) renderTV();
+  if (document.getElementById('resultsScreen').classList.contains('active')) {
+    renderResultsPodium();
+    renderResultsGrid();
+  }
 }
 
 function startListening() {
@@ -885,9 +889,8 @@ function playQuack() {
 
 // ===================== COUNTDOWN =====================
 function updateCountdown() {
-  const welcomeActive=document.getElementById('welcome').classList.contains('active');
   const tvActive=document.getElementById('tvScreen').classList.contains('active');
-  if(!welcomeActive&&!tvActive) return;
+  if(!tvActive) return;
   const now=new Date(), diff=DUE_DATE-now;
   if(diff<=0){['cdDays','cdHours','cdMins','cdSecs'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0'});return;}
   const days=Math.floor(diff/86400000),hours=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
@@ -968,9 +971,7 @@ function showAdminLogin() {
   if(pass===ADMIN_PASS){showScreen('adminScreen');renderAdmin();}
   else if(pass!==null) toast('Wrong password!');
 }
-function goBack(){
-  if(currentPlayer) showApp();
-  else showScreen('welcome');
+function goBack(){ showResultsScreen();
 }
 
 // ===================== NAV =====================
@@ -1000,9 +1001,7 @@ function enterTVMode(){
   if(sub) sub.textContent = `Live Predictions — Due ${dateStr}`;
   renderTV(); resumeAllBabies();
 }
-function exitTVMode(){
-  if(currentPlayer) showApp();
-  else showScreen('welcome');
+function exitTVMode(){ showResultsScreen();
 }
 function showTab(tab) {
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -1496,35 +1495,7 @@ document.addEventListener('click', e => {
 
 // ===================== INIT =====================
 startListening();
-
-// Read resultsMode FIRST so we route correctly before showing any screen.
-// This prevents the race where showApp() fires before the onValue listener
-// has received resultsMode from Firebase.
-get(ref(db, 'resultsMode')).then(snap => {
-  state.resultsMode = snap.val() === true;
-
-  if (state.resultsMode) {
-    // Results are published — send everyone straight to results, no login needed
-    showResultsScreen();
-    return;
-  }
-
-  // Normal mode — auto-rejoin returning player
-  const savedName = localStorage.getItem('bbpm_player');
-  if (savedName) {
-    document.getElementById('nameInput').value = savedName;
-    get(ref(db, `players/${savedName}`)).then(snap => {
-      if (snap.exists() && !currentPlayer) {
-        currentPlayer = savedName;
-        showApp();
-      }
-    }).catch(()=>{});
-  }
-}).catch(() => {
-  // Firebase unreachable — fall back to welcome screen
-  const savedName = localStorage.getItem('bbpm_player');
-  if (savedName) document.getElementById('nameInput').value = savedName;
-});
+showResultsScreen();
 </script>
 </body>
 </html>
