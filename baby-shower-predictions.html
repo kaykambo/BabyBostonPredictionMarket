@@ -1493,18 +1493,34 @@ document.addEventListener('click', e => {
 // ===================== INIT =====================
 startListening();
 
-// Auto-rejoin returning player — wait for Firebase to confirm they exist
-// rather than relying on a fixed timeout that fails on slow connections
-const savedName = localStorage.getItem('bbpm_player');
-if (savedName) {
-  document.getElementById('nameInput').value = savedName;
-  get(ref(db, `players/${savedName}`)).then(snap => {
-    if (snap.exists() && !currentPlayer) {
-      currentPlayer = savedName;
-      showApp();
-    }
-  }).catch(()=>{}); // startListening() will handle ongoing updates
-}
+// Read resultsMode FIRST so we route correctly before showing any screen.
+// This prevents the race where showApp() fires before the onValue listener
+// has received resultsMode from Firebase.
+get(ref(db, 'resultsMode')).then(snap => {
+  state.resultsMode = snap.val() === true;
+
+  if (state.resultsMode) {
+    // Results are published — send everyone straight to results, no login needed
+    showResultsScreen();
+    return;
+  }
+
+  // Normal mode — auto-rejoin returning player
+  const savedName = localStorage.getItem('bbpm_player');
+  if (savedName) {
+    document.getElementById('nameInput').value = savedName;
+    get(ref(db, `players/${savedName}`)).then(snap => {
+      if (snap.exists() && !currentPlayer) {
+        currentPlayer = savedName;
+        showApp();
+      }
+    }).catch(()=>{});
+  }
+}).catch(() => {
+  // Firebase unreachable — fall back to welcome screen
+  const savedName = localStorage.getItem('bbpm_player');
+  if (savedName) document.getElementById('nameInput').value = savedName;
+});
 </script>
 </body>
 </html>
