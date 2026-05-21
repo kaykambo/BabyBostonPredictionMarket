@@ -265,6 +265,33 @@ h1.title em { color: var(--pond); font-style: italic; }
 .result-winner-opt { color: var(--duckling); font-weight: 800; font-size: 1rem; margin-bottom: 6px; }
 .result-correct-bettors { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
 .results-back-btn { display: block; margin: 0 auto; }
+.breadcrumb-calc { max-width: 600px; margin: 32px auto 0; }
+.breadcrumb-calc-toggle {
+  width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px; padding: 14px 20px; cursor: pointer; font-family: 'Nunito', sans-serif;
+  font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.7); display: flex;
+  align-items: center; justify-content: space-between; transition: background 0.2s;
+}
+.breadcrumb-calc-toggle:hover { background: rgba(255,255,255,0.12); color: white; }
+.breadcrumb-calc-toggle .bc-arrow { transition: transform 0.25s; font-size: 0.75rem; }
+.breadcrumb-calc-toggle.open .bc-arrow { transform: rotate(180deg); }
+.breadcrumb-calc-body {
+  display: none; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-top: none; border-radius: 0 0 14px 14px; overflow: hidden;
+}
+.breadcrumb-calc-body.open { display: block; }
+.bc-market { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.bc-market:last-child { border-bottom: none; }
+.bc-market-q { font-size: 0.8rem; color: rgba(255,255,255,0.45); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+.bc-winner-row { color: var(--duckling); font-weight: 800; font-size: 0.88rem; margin-bottom: 6px; }
+.bc-pool-row { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+.bc-player-rows { display: flex; flex-direction: column; gap: 4px; }
+.bc-player-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 5px 10px; }
+.bc-player-name { flex: 1; color: rgba(255,255,255,0.75); font-weight: 600; }
+.bc-player-bet { color: rgba(255,255,255,0.4); font-size: 0.76rem; }
+.bc-player-payout { font-weight: 800; color: var(--duckling); min-width: 60px; text-align: right; }
+.bc-player-payout.lost { color: rgba(255,255,255,0.25); }
+.bc-no-resolve { font-size: 0.82rem; color: rgba(255,255,255,0.3); font-style: italic; }
 .results-duck-row { font-size: 2.6rem; margin-bottom: 10px; letter-spacing: 8px; animation: duckBounce 1.2s ease-in-out infinite alternate; }
 @keyframes duckBounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
 .results-baby-name { font-family: 'Lora', serif; font-size: clamp(2.4rem, 7vw, 4.5rem); font-weight: 700; color: white; font-style: italic; text-shadow: 0 4px 32px rgba(245,200,66,0.6); margin: 4px 0 6px; letter-spacing: 1px; }
@@ -605,11 +632,21 @@ h1.title em { color: var(--pond); font-style: italic; }
     <div class="podium-section-label" style="margin-top:32px">🎯 How the Predictions Played Out</div>
     <div class="results-grid" id="resultsGrid"></div>
 
-    <div style="text-align:center;margin-top:24px;padding-bottom:40px">
+    <div style="text-align:center;margin-top:24px">
       <button class="btn btn-duckling results-back-btn" onclick="showCertificate()">🏅 View Winner Certificate</button>
       <br><br>
       <button class="btn btn-ghost" style="color:rgba(255,255,255,0.5)" onclick="goBack()">← Back</button>
     </div>
+
+    <!-- BREADCRUMB CALCULATION BREAKDOWN -->
+    <div class="breadcrumb-calc">
+      <button class="breadcrumb-calc-toggle" id="bcToggle" onclick="toggleBreadcrumbCalc()">
+        <span>🍞 Breadcrumb Calculation</span>
+        <span class="bc-arrow">▼</span>
+      </button>
+      <div class="breadcrumb-calc-body" id="bcBody"></div>
+    </div>
+    <div style="padding-bottom:60px"></div>
   </div>
 </div>
 
@@ -1420,6 +1457,75 @@ function renderResultsGrid() {
   }).join('');
 }
 
+// ===================== BREADCRUMB CALC =====================
+function toggleBreadcrumbCalc() {
+  const toggle = document.getElementById('bcToggle');
+  const body = document.getElementById('bcBody');
+  const isOpen = toggle.classList.toggle('open');
+  body.classList.toggle('open', isOpen);
+  if (isOpen && !body.dataset.rendered) {
+    renderBreadcrumbCalc();
+    body.dataset.rendered = '1';
+  }
+}
+
+function renderBreadcrumbCalc() {
+  const body = document.getElementById('bcBody');
+  const activePlayers = Object.entries(state.players)
+    .filter(([,p]) => p.bets && Object.keys(p.bets).length > 0);
+
+  body.innerHTML = MARKETS.filter(m => !m.isNameGuess).map(m => {
+    const resolved = state.resolved[m.id];
+
+    // Tally totals per option
+    const totalByOpt = {};
+    activePlayers.forEach(([,p]) => {
+      const b = p.bets?.[m.id];
+      if (b) totalByOpt[b.option] = (totalByOpt[b.option] || 0) + b.amount;
+    });
+    const totalPool = Object.values(totalByOpt).reduce((a,b) => a+b, 0);
+    const winnerPool = resolved ? (totalByOpt[resolved] || 0) : 0;
+
+    if (!resolved) {
+      return `<div class="bc-market">
+        <div class="bc-market-q">${safeText(m.question)}</div>
+        <div class="bc-no-resolve">Not resolved</div>
+      </div>`;
+    }
+
+    // Build per-player rows — winners show payout, losers show amount lost
+    const playerRows = activePlayers
+      .filter(([,p]) => p.bets?.[m.id])
+      .sort(([,a],[,b]) => {
+        // Winners first, then sort by bet amount desc
+        const aWon = a.bets[m.id].option === resolved;
+        const bWon = b.bets[m.id].option === resolved;
+        if (aWon !== bWon) return bWon - aWon;
+        return b.bets[m.id].amount - a.bets[m.id].amount;
+      })
+      .map(([name, p]) => {
+        const b = p.bets[m.id];
+        const won = b.option === resolved;
+        const payout = won && winnerPool ? Math.round(totalPool * (b.amount / winnerPool)) : 0;
+        const payoutStr = won
+          ? `+${COIN}${payout} <span style="font-size:0.7rem;opacity:0.6">(bet ${b.amount})</span>`
+          : `-${COIN}${b.amount}`;
+        return `<div class="bc-player-row">
+          <span class="bc-player-name">${safeText(name)}</span>
+          <span class="bc-player-bet">${safeText(b.option)}${won ? ' ✓' : ''}</span>
+          <span class="bc-player-payout ${won ? '' : 'lost'}">${payoutStr}</span>
+        </div>`;
+      }).join('');
+
+    return `<div class="bc-market">
+      <div class="bc-market-q">${safeText(m.question)}</div>
+      <div class="bc-winner-row">✓ ${safeText(resolved)}</div>
+      <div class="bc-pool-row">Total pool: ${COIN}${totalPool} · Winner pool: ${COIN}${winnerPool}</div>
+      <div class="bc-player-rows">${playerRows || '<div class="bc-no-resolve">No bets placed</div>'}</div>
+    </div>`;
+  }).join('');
+}
+
 // ===================== CERTIFICATE =====================
 function showCertificate() {
   const scores=Object.entries(state.players).filter(([,p])=>p.bets&&Object.keys(p.bets).length>0).map(([name,p])=>({name,coins:p.coins||0})).sort((a,b)=>b.coins-a.coins);
@@ -1480,7 +1586,7 @@ Object.assign(window,{
   showTab,setMobileNav,handlePhotoUpload,
   closeBet,setAmt,placeBet,saveNameGuess,
   postWish,showResultsScreen,showCertificate,downloadCertificate,
-  resolveNameGuess,renderAdmin,toggleResultsMode
+  resolveNameGuess,renderAdmin,toggleResultsMode,toggleBreadcrumbCalc
 });
 
 // ===================== EVENT DELEGATION =====================
